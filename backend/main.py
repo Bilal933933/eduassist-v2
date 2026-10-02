@@ -6,12 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import health
 from config.settings import settings
+from realtime.factory import create_transport
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """إدارة دورة حياة التطبيق."""
-    # بدء التشغيل
+    # الجذر يقرأ الإعدادات مرة واحدة ويحقن الاسم في المصنع
+    app.state.transport = create_transport(settings.REALTIME_ADAPTER)
     yield
     # الإغلاق
 
