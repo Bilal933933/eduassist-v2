@@ -1,7 +1,7 @@
 """منفذ النقل (Transport Port) — واجهة مجردة لأي تقنية بث."""
 from abc import ABC, abstractmethod
 
-from realtime.contracts.events import StreamEvent
+from core.events import StreamEvent
 
 
 class RealtimeTransport(ABC):

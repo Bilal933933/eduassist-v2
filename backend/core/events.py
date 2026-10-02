@@ -1,4 +1,4 @@
-"""عقود الأحداث (Event Contracts) — تعريف موحد لأحداث البث."""
+"""أحداث القلب (Core Events) — اللغة المشتركة لأحداث البث."""
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -18,7 +18,7 @@ class EventType(str, Enum):
 
 @dataclass
 class StreamEvent:
-    """حدث بث موحد. لا يعرف شيئًا عن SSE أو WebSocket."""
+    """حدث بث موحد. لا يعرف شيئًا عن SSE أو WebSocket أو نست."""
 
     type: EventType
     thread_id: str

@@ -2,7 +2,7 @@
 from typing import AsyncIterator
 
 from core.ports.transport import RealtimeTransport
-from realtime.contracts.events import EventType, StreamEvent
+from core.events import EventType, StreamEvent
 
 
 class EventDispatcher:
