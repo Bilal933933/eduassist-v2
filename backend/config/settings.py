@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # ─── نموذج اللغة (LLM) ───
     LLM_PROVIDER: str = "google"
     LLM_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-2.0-flash"
+    LLM_MODEL: str = "gemini-3.5-flash"
 
     # ─── نموذج التضمين (Embedding) ───
     EMBEDDING_MODEL: str = "bge-m3"
