@@ -1,30 +1,39 @@
-"""نقطة الدخول (Entry Point) للواجهة الخلفية."""
+"""نقطة دخول فاستAPI (FastAPI)."""
+import asyncio
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import health
+from api.routes.chat import router as chat_router
 from config.settings import settings
-from realtime.factory import create_transport
+from db.checkpointer import open_checkpointer
+from db.session import open_session_factory
+from graph import build_graph, graph as memory_graph
+from realtime.routes import router as events_router
+
+
+if sys.platform == "win32":
+    # يحتاج اتصال PostgreSQL غير المتزامن إلى حلقة أحداث متوافقة على ويندوز.
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """إدارة دورة حياة التطبيق."""
-    # الجذر يقرأ الإعدادات مرة واحدة ويحقن الاسم في المصنع
-    app.state.transport = create_transport(settings.REALTIME_ADAPTER)
-    yield
-    # الإغلاق
+    """ربط عمر التطبيق باتصالات PostgreSQL اللازمة."""
+    async with (
+        open_checkpointer(settings.DATABASE_URL) as checkpointer,
+        open_session_factory(settings.DATABASE_URL) as session_factory,
+    ):
+        app.state.graph = build_graph(checkpointer)
+        app.state.session_factory = session_factory
+        yield
 
 
-app = FastAPI(
-    title="EduAssist V2 API",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-# إعداد CORS
+app = FastAPI(title="EduAssist V2 API", version="0.2.0", lifespan=lifespan)
+# يتيح الاختبارات المعزولة تشغيل التطبيق دون قاعدة بيانات فعلية.
+app.state.graph = memory_graph
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -32,6 +41,5 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# المسارات
-app.include_router(health.router)
+app.include_router(chat_router)
+app.include_router(events_router)

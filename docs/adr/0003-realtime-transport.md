@@ -1,7 +1,7 @@
 # ADR-0003: اعتماد SSE كنقل أولي + المنافذ والمحولات للبث
 
 ## الحالة
-معتمد
+مستبدل بقرار مقبس الويب (WebSocket) في ADR-0007
 
 ## السياق
 - الرسم (Graph) يجب ألا يعرف تقنية النقل (SSE / مقبس الويب / نست).
@@ -11,8 +11,8 @@
 - لغة الأحداث (`EventType` + `StreamEvent`) تسكن القلب: `core/events.py`.
 - المنفذ (Port) الوحيد: `RealtimeTransport` (`connect`، `send`، `close`) في `core/ports/transport.py`.
 - المحول (Adapter) الوحيد العامل: `SSEAdapter` في `realtime/adapters/`.
-- المصنع (Factory): `create_transport(adapter: str)` — يستقبل الاسم حقنًا ولا يقرأ الإعدادات.
-- الجذر (Composition Root): `main.py` يقرأ `REALTIME_ADAPTER` مرة واحدة ويبني النقل في `app.state`.
+- المصنع (Factory): `create_transport(adapter: str)` — يستقبل الاسم حقنًا ولا يقرأ الإعدادات، وينشئ محولًا مستقلًا لكل اتصال.
+- جذر التركيب (Composition Root): يقرأ `main.py` قيمة `REALTIME_ADAPTER` مرة واحدة ويحفظ اسم المحول في `app.state`، ثم ينشئ مسار الواجهة محولًا مستقلًا لكل طلب حتى لا تتشارك الاتصالات طابور الأحداث.
 
 ## البدائل المدروسة
 - مسارا بث منفصلان (Stream + Non-Stream): مرفوض — يخالف القاعدة 7.

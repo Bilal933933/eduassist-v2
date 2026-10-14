@@ -1,0 +1,9 @@
+const { spawn } = require('child_process');
+const path = require('path');
+const dir = path.join(__dirname);
+const nextBin = path.join(dir, 'node_modules', 'next', 'dist', 'bin', 'next');
+const child = spawn(process.execPath, [nextBin, 'start', '-H', '127.0.0.1', '-p', '3005'], { cwd: dir, stdio: 'inherit' });
+child.on('exit', (code) => process.exit(code ?? 1));
+child.on('error', (err) => { console.error('launcher failed:', err.message); process.exit(1); });
+process.on('SIGINT', () => child.kill());
+process.on('SIGTERM', () => child.kill());

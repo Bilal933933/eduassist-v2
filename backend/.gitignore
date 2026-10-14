@@ -1,4 +1,4 @@
-# Python-generated files
+# ملفات بايثون المولدة
 __pycache__/
 *.py[oc]
 build/
@@ -6,5 +6,9 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
+# البيئات الافتراضية
 .venv
+
+# الاختبارات والبيئة
+.pytest_cache/
+.env

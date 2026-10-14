@@ -1,0 +1,44 @@
+"""اختبار تكامل نقطة التفتيش مع PostgreSQL المحلية."""
+import asyncio
+import os
+import selectors
+import sys
+
+import pytest
+
+from config.settings import settings
+from db.checkpointer import open_checkpointer
+from graph import build_graph, checkpoint_config
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_POSTGRES_TESTS") != "1",
+    reason="يتطلب قاعدة PostgreSQL محلية مهيأة.",
+)
+def test_postgres_checkpointer_persists_graph_state() -> None:
+    """يحفظ الرسم حالته في PostgreSQL ويسترجعها للمحادثة نفسها."""
+
+    async def scenario() -> None:
+        config = checkpoint_config("integration-teacher", "integration-thread")
+        async with open_checkpointer(settings.DATABASE_URL) as checkpointer:
+            persistent_graph = build_graph(checkpointer)
+            await persistent_graph.ainvoke(
+                {"messages": ["الأولى"], "teacher_id": "integration-teacher"},
+                config,
+            )
+            result = await persistent_graph.ainvoke(
+                {"messages": ["الثانية"], "teacher_id": "integration-teacher"},
+                config,
+            )
+            assert result["messages"][-2:] == ["الأولى", "الثانية"]
+            await checkpointer.adelete_thread(
+                config["configurable"]["thread_id"],
+            )
+
+    if sys.platform == "win32":
+        with asyncio.Runner(
+            loop_factory=lambda: asyncio.SelectorEventLoop(selectors.SelectSelector()),
+        ) as runner:
+            runner.run(scenario())
+    else:
+        asyncio.run(scenario())

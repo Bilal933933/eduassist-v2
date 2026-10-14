@@ -1,9 +1,9 @@
-"""إعدادات التطبيق (Application Settings)."""
+"""إعدادات التطبيق (تُقرأ من متغيرات البيئة)."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """إعدادات القراءة من متغيرات البيئة (Environment Variables)."""
+    """إعدادات الواجهة الخلفية."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -11,35 +11,20 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ─── عام (General) ───
+    # ─── عام ───
     ENV: str = "development"
-    LOG_LEVEL: str = "INFO"
 
-    # ─── قاعدة البيانات (Database) ───
-    DATABASE_URL: str = "postgresql+asyncpg://eduassist:change_me@localhost:5432/eduassist"
+    # ─── الواجهة الخلفية ───
+    BACKEND_HOST: str = "127.0.0.1"
+    BACKEND_PORT: int = 5002
+    BACKEND_CORS_ORIGINS: str = "http://localhost:3005,http://127.0.0.1:3005"
 
-    # ─── الواجهة الخلفية (Backend) ───
-    BACKEND_HOST: str = "0.0.0.0"
-    BACKEND_PORT: int = 8000
-    BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
-
-    # ─── البث (Realtime) ───
-    REALTIME_ADAPTER: str = "sse"
-    NESTJS_URL: str = ""
-    INTERNAL_TOKEN: str = ""
-
-    # ─── نموذج اللغة (LLM) ───
-    LLM_PROVIDER: str = "google"
-    LLM_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-3.5-flash"
-
-    # ─── نموذج التضمين (Embedding) ───
-    EMBEDDING_MODEL: str = "bge-m3"
-    EMBEDDING_DIM: int = 1024
+    # ─── قاعدة البيانات ───
+    DATABASE_URL: str = "postgresql://eduassist:eduassist@127.0.0.1:5432/eduassist"
 
     @property
     def cors_origins_list(self) -> list[str]:
-        """تحويل نص CORS إلى قائمة."""
+        """تحويل نص المصادر المسموحة إلى قائمة."""
         return [o.strip() for o in self.BACKEND_CORS_ORIGINS.split(",") if o.strip()]
 
 
