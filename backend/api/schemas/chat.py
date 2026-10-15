@@ -1,4 +1,6 @@
 """نماذج طلب المحادثة واستجابتها."""
+from datetime import datetime
+from typing import Generic, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -29,3 +31,33 @@ class ConversationCreated(BaseModel):
 
     id: UUID
     title: str | None
+
+
+class ConversationItem(BaseModel):
+    """كل بيانات محادثة واحدة في القائمة."""
+
+    id: UUID
+    title: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class MessageItem(BaseModel):
+    """كل بيانات رسالة واحدة."""
+
+    id: UUID
+    sender: str
+    content: str
+    sequence_number: int
+    created_at: datetime
+
+
+ItemT = TypeVar("ItemT")
+
+
+class Page(BaseModel, Generic[ItemT]):
+    """صفحة واحدة: العناصر ومؤشر التالي (null عند النهاية)."""
+
+    items: list[ItemT]
+    next_cursor: str | None = None

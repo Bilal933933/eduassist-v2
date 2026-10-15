@@ -47,3 +47,25 @@ class MessageRepository:
         )
         result = await self._session.scalars(statement)
         return list(result)
+
+    async def list_page_after(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+        page_size: int,
+        after_sequence: int | None = None,
+    ) -> list[Message]:
+        """جلب صفحة رسائل بعد مؤشر تسلسلي مع شرط الملكية المزدوج."""
+        statement = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.user_id == user_id,
+            )
+            .order_by(Message.sequence_number)
+            .limit(page_size)
+        )
+        if after_sequence is not None:
+            statement = statement.where(Message.sequence_number > after_sequence)
+        result = await self._session.scalars(statement)
+        return list(result)

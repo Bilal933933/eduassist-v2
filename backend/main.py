@@ -6,13 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from adapters.llm import GeminiClient
 from services.errors.handlers import register_error_handlers
 from api.routes.auth import router as auth_router
 from api.routes.chat import router as chat_router
 from config.settings import settings
 from db.checkpointer import open_checkpointer
 from db.session import open_session_factory
-from graph import build_graph, graph as memory_graph
+from graph import build_graph
 from realtime.routes import router as events_router
 
 
@@ -24,18 +25,24 @@ if sys.platform == "win32":
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """ربط عمر التطبيق باتصالات PostgreSQL اللازمة."""
+    gemini = GeminiClient(settings.GEMINI_API_KEY, settings.GEMINI_MODEL)
     async with (
         open_checkpointer(settings.DATABASE_URL) as checkpointer,
         open_session_factory(settings.DATABASE_URL) as session_factory,
     ):
-        app.state.graph = build_graph(checkpointer)
-        app.state.session_factory = session_factory
-        yield
+        try:
+            app.state.graph = build_graph(
+                checkpointer,
+                call_model=gemini.generate,
+                classify_intent=gemini.generate_enum,
+            )
+            app.state.session_factory = session_factory
+            yield
+        finally:
+            await gemini.close()
 
 
 app = FastAPI(title="EduAssist V2 API", version="0.2.0", lifespan=lifespan)
-# يتيح الاختبارات المعزولة تشغيل التطبيق دون قاعدة بيانات فعلية.
-app.state.graph = memory_graph
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,

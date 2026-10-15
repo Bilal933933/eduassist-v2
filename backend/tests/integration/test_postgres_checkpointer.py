@@ -19,9 +19,23 @@ def test_postgres_checkpointer_persists_graph_state() -> None:
     """يحفظ الرسم حالته في PostgreSQL ويسترجعها للمحادثة نفسها."""
 
     async def scenario() -> None:
+        async def fake_generate(
+            message: str, system_prompt: str, temperature: float
+        ) -> str:
+            _ = system_prompt, temperature
+            return message
+
+        async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+            _ = prompt, choices
+            return "generation"
+
         config = checkpoint_config("integration-user", "integration-thread")
         async with open_checkpointer(settings.DATABASE_URL) as checkpointer:
-            persistent_graph = build_graph(checkpointer)
+            persistent_graph = build_graph(
+                checkpointer,
+                call_model=fake_generate,
+                classify_intent=fake_classify,
+            )
             await persistent_graph.ainvoke(
                 {"messages": ["الأولى"], "user_id": "integration-user"},
                 config,

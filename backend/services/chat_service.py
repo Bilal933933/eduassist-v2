@@ -8,12 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.repositories import ConversationRepository, MessageRepository
 from graph import checkpoint_config
 from realtime.chat_server import chat_server
-from services.errors import EventConnectionRequiredError, NotFoundError
+from services.errors import ConversationNotFoundError, EventConnectionRequiredError
 
 # إعادة التصدير للتوافق مع المستوردين الحاليين.
 __all__ = [
+    "ConversationNotFoundError",
     "EventConnectionRequiredError",
-    "NotFoundError",
     "create_conversation",
     "process_chat",
 ]
@@ -37,7 +37,7 @@ async def process_chat(
         user_id,
     )
     if conversation is None:
-        raise NotFoundError("conversation")
+        raise ConversationNotFoundError
 
     messages = MessageRepository(session)
     await messages.add(conversation_id, user_id, "user", message)
@@ -53,8 +53,10 @@ async def process_chat(
         )
         response: str | None = None
         async for event in event_stream:
-            if event.get("event") == "on_chain_end" and event.get("name") == "greeting":
-                output = event.get("data", {}).get("output", {})
+            if event.get("event") != "on_chain_end":
+                continue
+            output = event.get("data", {}).get("output", {})
+            if isinstance(output, dict) and isinstance(output.get("response"), str):
                 response = output["response"]
     except Exception:
         await chat_server.send_failed(

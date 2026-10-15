@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     AUTH_COOKIE_NAME: str = "eduassist_session"
     AUTH_SESSION_DAYS: int = 30
 
+    # ─── نموذج اللغة الكبير ───
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-flash-latest"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """تحويل نص المصادر المسموحة إلى قائمة."""
