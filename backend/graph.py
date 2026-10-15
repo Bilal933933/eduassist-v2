@@ -15,7 +15,7 @@ class AgentState(TypedDict, total=False):
 
     messages: Annotated[list[str], operator.add]
     response: str
-    teacher_id: str
+    user_id: str
 
 
 def greeting_node(state: AgentState) -> dict:
@@ -24,10 +24,10 @@ def greeting_node(state: AgentState) -> dict:
     return {"response": GREETING_TEXT}
 
 
-def checkpoint_config(teacher_id: str, thread_id: str) -> dict:
-    """عزل حالة كل محادثة داخل نطاق المدرس."""
+def checkpoint_config(user_id: str, conversation_id: str) -> dict:
+    """عزل حالة كل محادثة داخل نطاق المستخدم."""
     scoped_thread_id = json.dumps(
-        [teacher_id, thread_id], ensure_ascii=False, separators=(",", ":")
+        [user_id, conversation_id], ensure_ascii=False, separators=(",", ":")
     )
     return {"configurable": {"thread_id": scoped_thread_id}}
 

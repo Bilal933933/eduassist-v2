@@ -19,15 +19,15 @@ def test_postgres_checkpointer_persists_graph_state() -> None:
     """يحفظ الرسم حالته في PostgreSQL ويسترجعها للمحادثة نفسها."""
 
     async def scenario() -> None:
-        config = checkpoint_config("integration-teacher", "integration-thread")
+        config = checkpoint_config("integration-user", "integration-thread")
         async with open_checkpointer(settings.DATABASE_URL) as checkpointer:
             persistent_graph = build_graph(checkpointer)
             await persistent_graph.ainvoke(
-                {"messages": ["الأولى"], "teacher_id": "integration-teacher"},
+                {"messages": ["الأولى"], "user_id": "integration-user"},
                 config,
             )
             result = await persistent_graph.ainvoke(
-                {"messages": ["الثانية"], "teacher_id": "integration-teacher"},
+                {"messages": ["الثانية"], "user_id": "integration-user"},
                 config,
             )
             assert result["messages"][-2:] == ["الأولى", "الثانية"]

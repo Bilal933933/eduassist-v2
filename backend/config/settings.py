@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # ─── قاعدة البيانات ───
     DATABASE_URL: str = "postgresql://eduassist:eduassist@127.0.0.1:5432/eduassist"
 
+    # ─── المصادقة والجلسات ───
+    AUTH_COOKIE_NAME: str = "eduassist_session"
+    AUTH_SESSION_DAYS: int = 30
+
     @property
     def cors_origins_list(self) -> list[str]:
         """تحويل نص المصادر المسموحة إلى قائمة."""

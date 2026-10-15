@@ -1,32 +1,89 @@
-"""خدمة تشغيل رسم المحادثة وإصدار أحداثه."""
+"""خدمة تشغيل رسم المحادثة وحفظ رسائله وإصدار أحداثه."""
+from datetime import datetime, timezone
 from typing import Any
+from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.repositories import ConversationRepository, MessageRepository
 from graph import checkpoint_config
 from realtime.chat_server import chat_server
+from services.errors import EventConnectionRequiredError, NotFoundError
 
-
-class EventConnectionRequiredError(Exception):
-    """خطأ يدل على غياب اتصال الأحداث المطلوب."""
+# إعادة التصدير للتوافق مع المستوردين الحاليين.
+__all__ = [
+    "EventConnectionRequiredError",
+    "NotFoundError",
+    "create_conversation",
+    "process_chat",
+]
 
 
 async def process_chat(
-    graph: Any, teacher_id: str, thread_id: str, message: str
+    graph: Any,
+    session: AsyncSession,
+    user_id: UUID,
+    conversation_id: UUID,
+    message: str,
 ) -> None:
-    """تشغيل الرسم وإرسال أحداث البداية والاكتمال."""
-    if not chat_server.is_connected(teacher_id, thread_id):
+    """حفظ الرسالة وتشغيل الرسم وحفظ الرد وإصدار الأحداث."""
+    owner_key = str(user_id)
+    conversation_key = str(conversation_id)
+    if not chat_server.is_connected(owner_key, conversation_key):
         raise EventConnectionRequiredError
 
-    await chat_server.send_started(teacher_id, thread_id)
-    event_stream = graph.astream_events(
-        {"messages": [message], "teacher_id": teacher_id},
-        checkpoint_config(teacher_id, thread_id),
-        version="v2",
+    conversation = await ConversationRepository(session).get_owned(
+        conversation_id,
+        user_id,
     )
-    async for event in event_stream:
-        if event.get("event") == "on_chain_end" and event.get("name") == "greeting":
-            output = event.get("data", {}).get("output", {})
-            await chat_server.send_completed(
-                teacher_id,
-                thread_id,
-                output["response"],
-            )
+    if conversation is None:
+        raise NotFoundError("conversation")
+
+    messages = MessageRepository(session)
+    await messages.add(conversation_id, user_id, "user", message)
+    conversation.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+
+    await chat_server.send_started(owner_key, conversation_key)
+    try:
+        event_stream = graph.astream_events(
+            {"messages": [message], "user_id": owner_key},
+            checkpoint_config(owner_key, conversation_key),
+            version="v2",
+        )
+        response: str | None = None
+        async for event in event_stream:
+            if event.get("event") == "on_chain_end" and event.get("name") == "greeting":
+                output = event.get("data", {}).get("output", {})
+                response = output["response"]
+    except Exception:
+        await chat_server.send_failed(
+            owner_key, conversation_key, "CHAT_FAILED", "تعذر إكمال المحادثة."
+        )
+        raise
+
+    if response is None:
+        await chat_server.send_failed(
+            owner_key, conversation_key, "CHAT_FAILED", "تعذر إكمال المحادثة."
+        )
+        raise RuntimeError("لم يصدر الرسم ردًا نهائيًا.")
+
+    await messages.add(conversation_id, user_id, "assistant", response)
+    conversation.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    await chat_server.send_completed(owner_key, conversation_key, response)
+
+
+async def create_conversation(
+    session: AsyncSession,
+    user_id: UUID,
+    title: str | None,
+) -> object:
+    """إنشاء محادثة مملوكة للمستخدم داخل حالة استخدام مستقلة."""
+    normalized_title = title.strip() if title else None
+    conversation = await ConversationRepository(session).create(
+        user_id,
+        normalized_title or None,
+    )
+    await session.commit()
+    return conversation

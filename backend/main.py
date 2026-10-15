@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from services.errors.handlers import register_error_handlers
+from api.routes.auth import router as auth_router
 from api.routes.chat import router as chat_router
 from config.settings import settings
 from db.checkpointer import open_checkpointer
@@ -41,5 +43,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+register_error_handlers(app)
+app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(events_router)
