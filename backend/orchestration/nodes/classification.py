@@ -4,9 +4,15 @@ from collections.abc import Awaitable, Callable
 from typing import cast
 
 from orchestration.state import AgentState, Intent
+from prompts.tasks import INTENT_CLASSIFICATION_TASK
 from shared.prompt_builder import build_prompt
 
-ALLOWED_INTENTS: tuple[Intent, ...] = ("greeting", "quick_reply", "generation")
+ALLOWED_INTENTS: tuple[Intent, ...] = (
+    "greeting",
+    "quick_reply",
+    "generation",
+    "general",
+)
 
 
 def create_classification_node(
@@ -19,7 +25,7 @@ def create_classification_node(
         prompt = build_prompt(
             message=state["messages"][-1],
             context={"allowed_intents": list(ALLOWED_INTENTS)},
-            task="classify_intent",
+            task=INTENT_CLASSIFICATION_TASK,
             role="intent_classifier",
         )
         result = await classify_intent(prompt, ALLOWED_INTENTS)

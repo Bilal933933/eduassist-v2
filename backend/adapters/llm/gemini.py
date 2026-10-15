@@ -1,9 +1,13 @@
 """عميل جوجل جيمناي لتوليد الردود النصية."""
 
+import asyncio
 from enum import Enum
 
 from google import genai
 from google.genai import types
+
+# ─── مهلة التوليد: أي تعليق يتحول لخطأ بدل تجميد الرسم ───
+GENERATE_TIMEOUT_SECONDS = 60.0
 
 
 class GeminiClient:
@@ -35,13 +39,16 @@ class GeminiClient:
         temperature: float,
     ) -> str:
         """توليد رد عربي على رسالة المستخدم."""
-        response = await self._get_client().aio.models.generate_content(
-            model=self._model,
-            contents=message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=temperature,
+        response = await asyncio.wait_for(
+            self._get_client().aio.models.generate_content(
+                model=self._model,
+                contents=message,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=temperature,
+                ),
             ),
+            timeout=GENERATE_TIMEOUT_SECONDS,
         )
         if not response.text:
             raise RuntimeError("لم يُرجع جيمناي ردًا نصيًا.")
@@ -53,14 +60,17 @@ class GeminiClient:
             "ResponseChoice",
             {choice.upper(): choice for choice in choices},
         )
-        response = await self._get_client().aio.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="text/x.enum",
-                response_schema=response_enum,
-                temperature=0.0,
+        response = await asyncio.wait_for(
+            self._get_client().aio.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="text/x.enum",
+                    response_schema=response_enum,
+                    temperature=0.0,
+                ),
             ),
+            timeout=GENERATE_TIMEOUT_SECONDS,
         )
         if not response.text:
             raise RuntimeError("لم يُرجع جيمناي قيمة تصنيف.")

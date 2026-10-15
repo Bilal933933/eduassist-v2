@@ -9,8 +9,9 @@ from langgraph.graph import END, START, StateGraph
 
 from orchestration.nodes import (
     create_classification_node,
+    create_general_node,
     create_generation_node,
-    greeting_node,
+    create_greeting_node,
     quick_reply_node,
     route_intent,
 )
@@ -36,16 +37,18 @@ def build_graph(
     """تجميع الرسم الرئيسي مع حافظ نقاط التفتيش المحقون."""
     builder = StateGraph(AgentState)
     builder.add_node("classify", create_classification_node(classify_intent))
-    builder.add_node("greeting", greeting_node)
+    builder.add_node("greeting", create_greeting_node(call_model))
     builder.add_node("quick_reply", quick_reply_node)
     builder.add_node("generation", create_generation_node(call_model))
+    builder.add_node("general", create_general_node(call_model))
     builder.add_edge(START, "classify")
     builder.add_conditional_edges(
         "classify",
         route_intent,
-        ["greeting", "quick_reply", "generation"],
+        ["greeting", "quick_reply", "generation", "general"],
     )
     builder.add_edge("greeting", END)
     builder.add_edge("quick_reply", END)
     builder.add_edge("generation", END)
+    builder.add_edge("general", END)
     return builder.compile(checkpointer=checkpointer or InMemorySaver())

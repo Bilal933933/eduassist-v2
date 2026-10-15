@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal
 
 from typing_extensions import TypedDict
 
-Intent = Literal["greeting", "quick_reply", "generation"]
+Intent = Literal["greeting", "quick_reply", "generation", "general"]
 
 
 class AgentState(TypedDict, total=False):

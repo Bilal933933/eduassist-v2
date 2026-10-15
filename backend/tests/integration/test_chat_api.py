@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 import api.routes.chat as chat_routes
-from graph import GREETING_TEXT, build_graph
+from graph import build_graph
 from main import app
 from realtime.chat_server import chat_server
 
@@ -23,8 +23,8 @@ def _override_auth(user: Mock | None) -> None:
     async def fake_generate(
         message: str, system_prompt: str, temperature: float
     ) -> str:
-        _ = system_prompt, temperature
-        return message
+        _ = message, system_prompt, temperature
+        return "أهلًا بك، كيف يمكنني مساعدتك؟"
 
     async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
         _ = prompt, choices
@@ -88,7 +88,7 @@ def test_chat_sends_events_to_connected_frontend(fake_websocket) -> None:
                 "type": "chat.completed",
                 "data": {
                     "conversation_id": str(conversation_id),
-                    "response": GREETING_TEXT,
+                    "response": "أهلًا بك، كيف يمكنني مساعدتك؟",
                 },
                 "error": None,
             },
