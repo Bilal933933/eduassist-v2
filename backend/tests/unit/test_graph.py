@@ -13,6 +13,7 @@ from prompts.tasks import (
     GENERAL_RESPONSE_TASK,
     GREETING_RESPONSE_TASK,
     INTENT_CLASSIFICATION_TASK,
+    RECALL_TASK,
 )
 
 
@@ -60,7 +61,7 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
             assert choices == ALLOWED_INTENTS
             payload = json.loads(prompt)
             assert payload["message"] == message
-            assert payload["task"] == INTENT_CLASSIFICATION_TASK
+            assert payload["task"].startswith(INTENT_CLASSIFICATION_TASK)
             return expected_intent
 
         classify_node = create_classification_node(fake_classify)
@@ -146,6 +147,60 @@ def test_graph_routes_greeting_quick_reply_and_generation_message() -> None:
         )
         assert result["intent"] == expected_intent
         assert result["response"] == expected_response
+
+
+def test_graph_routes_recall_through_summarize_to_generation() -> None:
+    """نية التذكر تمر بالتلخيص قبل التوليد مع تمرير الملخص."""
+    seen: list[dict] = []
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        payload = json.loads(message)
+        seen.append(payload)
+        if payload["task"] == RECALL_TASK:
+            return "كنا نتحدث عن المفعول به"
+        return f"الإجابة بناء على: {payload['context'].get('summary', '')}"
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "recall"
+
+    assistant_graph = build_graph(
+        call_model=fake_generate,
+        classify_intent=fake_classify,
+    )
+    result = asyncio.run(
+        assistant_graph.ainvoke(
+            {"messages": ["ما الذي كنا نتحدث عنه"], "user_id": "user-1"},
+            checkpoint_config("user-1", "recall-conv"),
+        )
+    )
+
+    assert result["intent"] == "recall"
+    assert result["response"] == "الإجابة بناء على: كنا نتحدث عن المفعول به"
+    assert any(entry["task"] == RECALL_TASK for entry in seen)
+
+
+def test_abuse_node_escalates_count_without_mutating_state() -> None:
+    """عقدة الإساءة ترفع العد في الحالة ولا تعدل المدخلات."""
+    from orchestration.nodes import create_abuse_node
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = message, system_prompt, temperature
+        return "رد مهذب"
+
+    abuse_node = create_abuse_node(fake_generate)
+    state = {"messages": ["إساءة"], "user_id": "user-1", "abuse_count": 1}
+    snapshot = dict(state)
+
+    result = asyncio.run(abuse_node(state))
+
+    assert result == {"response": "رد مهذب", "abuse_count": 2}
+    assert state == snapshot
 
 
 def test_checkpoint_is_isolated_by_user_and_conversation() -> None:

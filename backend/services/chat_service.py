@@ -9,6 +9,7 @@ from db.repositories import ConversationRepository, MessageRepository
 from graph import checkpoint_config
 from realtime.chat_server import chat_server
 from services.errors import ConversationNotFoundError, EventConnectionRequiredError
+from shared.context_builder import build_classifier_view, build_generator_view
 
 # إعادة التصدير للتوافق مع المستوردين الحاليين.
 __all__ = [
@@ -40,6 +41,13 @@ async def process_chat(
         raise ConversationNotFoundError
 
     messages = MessageRepository(session)
+    prior_rows = await messages.list_recent(conversation_id, user_id)
+    generator_view = build_generator_view(prior_rows)
+    context = {
+        "history": generator_view["history"],
+        "classifier_view": build_classifier_view(prior_rows),
+        "generator_view": generator_view,
+    }
     await messages.add(conversation_id, user_id, "user", message)
     conversation.updated_at = datetime.now(timezone.utc)
     await session.commit()
@@ -47,7 +55,7 @@ async def process_chat(
     await chat_server.send_started(owner_key, conversation_key)
     try:
         event_stream = graph.astream_events(
-            {"messages": [message], "user_id": owner_key},
+            {"messages": [message], "user_id": owner_key, "context": context},
             checkpoint_config(owner_key, conversation_key),
             version="v2",
         )

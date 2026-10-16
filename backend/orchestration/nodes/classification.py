@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import cast
 
 from orchestration.state import AgentState, Intent
-from prompts.tasks import INTENT_CLASSIFICATION_TASK
+from prompts.tasks import INTENT_CLASSIFICATION_TASK, INTENT_HINT
 from shared.prompt_builder import build_prompt
 
 ALLOWED_INTENTS: tuple[Intent, ...] = (
@@ -12,6 +12,8 @@ ALLOWED_INTENTS: tuple[Intent, ...] = (
     "quick_reply",
     "generation",
     "general",
+    "abuse",
+    "recall",
 )
 
 
@@ -22,10 +24,17 @@ def create_classification_node(
 
     async def classification_node(state: AgentState) -> dict:
         """تصنيف أحدث رسالة والتحقق من النية قبل تحديث الحالة."""
+        context = state.get("context", {})
+        history = context.get(
+            "classifier_view", {"history": context.get("history", [])}
+        )["history"]
         prompt = build_prompt(
             message=state["messages"][-1],
-            context={"allowed_intents": list(ALLOWED_INTENTS)},
-            task=INTENT_CLASSIFICATION_TASK,
+            context={
+                "allowed_intents": list(ALLOWED_INTENTS),
+                "history": history,
+            },
+            task=f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}",
             role="intent_classifier",
         )
         result = await classify_intent(prompt, ALLOWED_INTENTS)

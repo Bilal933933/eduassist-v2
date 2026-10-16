@@ -5,7 +5,9 @@ from typing import Annotated, Any, Literal
 
 from typing_extensions import TypedDict
 
-Intent = Literal["greeting", "quick_reply", "generation", "general"]
+Intent = Literal[
+    "greeting", "quick_reply", "generation", "general", "abuse", "recall"
+]
 
 
 class AgentState(TypedDict, total=False):
@@ -18,3 +20,5 @@ class AgentState(TypedDict, total=False):
     context: dict[str, Any]
     task: str
     role: str
+    summary: str
+    abuse_count: int

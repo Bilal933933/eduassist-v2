@@ -14,9 +14,13 @@ def create_generation_node(
 
     async def generation_node(state: AgentState) -> dict:
         """إرسال أحدث رسالة إلى النموذج وإعادة الرد كتحديث للحالة."""
+        context = state.get("context", {})
+        view = dict(context.get("generator_view", context))
+        if state.get("summary"):
+            view["summary"] = state["summary"]
         prompt = build_prompt(
             message=state["messages"][-1],
-            context=state.get("context", {}),
+            context=view,
             task=state.get("task", "answer"),
             role=state.get("role", "educational_assistant"),
         )

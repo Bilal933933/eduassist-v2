@@ -48,6 +48,25 @@ class MessageRepository:
         result = await self._session.scalars(statement)
         return list(result)
 
+    async def list_recent(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+        limit: int = 12,
+    ) -> list[Message]:
+        """جلب آخر رسائل المحادثة بحد من القاعدة لا من الذاكرة."""
+        statement = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_id,
+                Message.user_id == user_id,
+            )
+            .order_by(Message.sequence_number.desc())
+            .limit(limit)
+        )
+        result = await self._session.scalars(statement)
+        return list(reversed(list(result)))
+
     async def list_page_after(
         self,
         conversation_id: UUID,
