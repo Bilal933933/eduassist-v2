@@ -59,16 +59,18 @@ async def process_chat(
             if isinstance(output, dict) and isinstance(output.get("response"), str):
                 response = output["response"]
     except Exception:
+        # رسالة المستخدم محفوظة مسبقًا: الفشل يُبلَّغ عبر المقبس فقط
+        # ليبقى عقد HTTP بقبول (accepted) ولا يظهر توست مزدوج.
         await chat_server.send_failed(
             owner_key, conversation_key, "CHAT_FAILED", "تعذر إكمال المحادثة."
         )
-        raise
+        return
 
     if response is None:
         await chat_server.send_failed(
             owner_key, conversation_key, "CHAT_FAILED", "تعذر إكمال المحادثة."
         )
-        raise RuntimeError("لم يصدر الرسم ردًا نهائيًا.")
+        return
 
     await messages.add(conversation_id, user_id, "assistant", response)
     conversation.updated_at = datetime.now(timezone.utc)

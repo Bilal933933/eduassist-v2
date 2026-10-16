@@ -47,6 +47,9 @@ export function useChatSocket(
         settledRef.current();
       }
       if (chatEvent.type === "chat.failed") {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.messages(conversationId),
+        });
         toast.error(chatEvent.error?.message ?? "تعذر إكمال المحادثة.");
         settledRef.current();
       }

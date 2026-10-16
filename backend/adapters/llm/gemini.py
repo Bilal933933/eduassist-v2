@@ -24,12 +24,30 @@ def _is_transient(error: Exception) -> bool:
     return isinstance(error, TimeoutError | genai_errors.ServerError)
 
 
+def _should_fallback(error: Exception) -> bool:
+    """الازدحام (5xx) والحصة (429) والموديل المتقادم (404) تستحق البديل."""
+    if isinstance(error, genai_errors.ServerError):
+        return True
+    if isinstance(error, genai_errors.ClientError):
+        text = str(error)
+        return (
+            "NOT_FOUND" in text
+            or "404" in text
+            or "429" in text
+            or "RESOURCE_EXHAUSTED" in text
+        )
+    return False
+
+
 class GeminiClient:
     """استدعاء جيمناي وإرجاع النص الناتج فقط."""
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(
+        self, api_key: str, model: str, fallback_model: str = "gemini-3.5-flash-lite"
+    ) -> None:
         self._api_key = api_key
         self._model = model
+        self._fallback_model = fallback_model
         self._client: genai.Client | None = None
 
     def _get_client(self) -> genai.Client:
@@ -70,10 +88,10 @@ class GeminiClient:
         # نماذج 3.x تدير العينات بنفسها: تُقبل temperature للتوافق ولا تُرسل.
         _ = temperature
 
-        async def attempt() -> str:
+        async def attempt(model: str) -> str:
             response = await asyncio.wait_for(
                 self._get_client().aio.models.generate_content(
-                    model=self._model,
+                    model=model,
                     contents=message,
                     config=types.GenerateContentConfig(
                         system_instruction=system_prompt,
@@ -85,7 +103,13 @@ class GeminiClient:
                 raise RuntimeError("لم يُرجع جيمناي ردًا نصيًا.")
             return response.text
 
-        return await self._call_with_retry(attempt)
+        try:
+            return await self._call_with_retry(lambda: attempt(self._model))
+        except Exception as error:
+            # الأساسي مزدحم (503) أو متقادم (404): جرّب البديل مرة واحدة.
+            if not _should_fallback(error) or self._fallback_model == self._model:
+                raise
+            return await self._call_with_retry(lambda: attempt(self._fallback_model))
 
     async def generate_enum(self, prompt: str, choices: tuple[str, ...]) -> str:
         """اختيار قيمة واحدة من قائمة محددة بإخراج منظم."""
@@ -93,10 +117,10 @@ class GeminiClient:
             "ResponseChoice",
             {choice.upper(): choice for choice in choices},
         )
-        async def attempt() -> str:
+        async def attempt(model: str) -> str:
             response = await asyncio.wait_for(
                 self._get_client().aio.models.generate_content(
-                    model=self._model,
+                    model=model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="text/x.enum",
@@ -109,7 +133,12 @@ class GeminiClient:
                 raise RuntimeError("لم يُرجع جيمناي قيمة تصنيف.")
             return response.text.strip()
 
-        return await self._call_with_retry(attempt)
+        try:
+            return await self._call_with_retry(lambda: attempt(self._model))
+        except Exception as error:
+            if not _should_fallback(error) or self._fallback_model == self._model:
+                raise
+            return await self._call_with_retry(lambda: attempt(self._fallback_model))
 
     async def close(self) -> None:
         """إغلاق اتصالات العميل غير المتزامن والمتزامن."""

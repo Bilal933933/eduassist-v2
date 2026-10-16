@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # ─── نموذج اللغة الكبير ───
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
 
     @property
     def cors_origins_list(self) -> list[str]:

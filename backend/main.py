@@ -25,7 +25,11 @@ if sys.platform == "win32":
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """ربط عمر التطبيق باتصالات PostgreSQL اللازمة."""
-    gemini = GeminiClient(settings.GEMINI_API_KEY, settings.GEMINI_MODEL)
+    gemini = GeminiClient(
+        settings.GEMINI_API_KEY,
+        settings.GEMINI_MODEL,
+        settings.GEMINI_FALLBACK_MODEL,
+    )
     async with (
         open_checkpointer(settings.DATABASE_URL) as checkpointer,
         open_session_factory(settings.DATABASE_URL) as session_factory,
