@@ -2,7 +2,7 @@
 
 import asyncio
 
-from orchestration.nodes.generation import create_generation_node
+from orchestration.nodes.student.generation import create_generation_node
 
 
 def test_generation_node_uses_latest_message() -> None:

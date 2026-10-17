@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 
 from langgraph.graph import END, START, StateGraph
 
-from orchestration.nodes import (
+from orchestration.nodes.shared import (
     create_abuse_node,
     create_classification_node,
     create_general_node,
@@ -13,35 +13,8 @@ from orchestration.nodes import (
     quick_reply_node,
     route_intent,
 )
+from orchestration.nodes.teacher import create_teacher_generation_node
 from orchestration.state import AgentState
-from prompts.system import SYSTEM_PROMPT
-from shared.prompt_builder import build_prompt
-
-
-def create_teacher_generation_node(
-    call_model: Callable[[str, str, float], Awaitable[str]],
-):
-    """عقدة توليد المعلم: تحقن خلاصة البروفايل في السياق."""
-
-    async def teacher_generation_node(state: AgentState) -> dict:
-        """إرسال الرسالة مع سياق المعلم وإعادة الرد."""
-        context = dict(state.get("context", {}))
-        brief = context.get("teacher_brief", "")
-        view = dict(context.get("generator_view", {"history": context.get("history", [])}))
-        if brief:
-            view["teacher_brief"] = brief
-        if state.get("summary"):
-            view["summary"] = state["summary"]
-        prompt = build_prompt(
-            message=state["messages"][-1],
-            context=view,
-            task=state.get("task", "answer"),
-            role="teacher_assistant",
-        )
-        response = await call_model(prompt, SYSTEM_PROMPT, 0.2)
-        return {"response": response}
-
-    return teacher_generation_node
 
 
 def build_teacher_graph(
@@ -51,6 +24,7 @@ def build_teacher_graph(
 ):
     """تجميع عقد مسار المعلم في رسم فرعي بلا نقاط تفتيش."""
     builder = StateGraph(AgentState)
+
     builder.add_node("classify", create_classification_node(classify_intent))
     builder.add_node("greeting", create_greeting_node(call_model))
     builder.add_node("quick_reply", quick_reply_node)
@@ -58,6 +32,7 @@ def build_teacher_graph(
     builder.add_node("general", create_general_node(call_model))
     builder.add_node("abuse", create_abuse_node(call_model))
     builder.add_node("recall", create_summarize_node(call_model))
+
     builder.add_edge(START, "classify")
     builder.add_conditional_edges(
         "classify",
@@ -70,4 +45,5 @@ def build_teacher_graph(
     builder.add_edge("general", END)
     builder.add_edge("abuse", END)
     builder.add_edge("recall", "generation")
+
     return builder.compile()

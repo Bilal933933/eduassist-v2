@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from orchestration.nodes.general import create_general_node
+from orchestration.nodes.shared.general import create_general_node
 from prompts.system import GENERAL_SYSTEM_PROMPT
 from prompts.tasks import GENERAL_RESPONSE_TASK
 
