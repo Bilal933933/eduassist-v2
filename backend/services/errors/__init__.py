@@ -12,19 +12,26 @@ from services.errors.base import (
     AuthorizationError,
     ConflictError,
     NotFoundError,
+    RateLimitError,
     ValidationError,
 )
 from services.errors.conversations import (
+    ChatBusyError,
     ConversationNotFoundError,
     EventConnectionRequiredError,
 )
-from services.errors.request import InvalidCursorError, OriginNotAllowedError
+from services.errors.request import (
+    InvalidCursorError,
+    OriginNotAllowedError,
+    RateLimitExceededError,
+)
 
 __all__ = [
     "AccountInactiveError",
     "AppError",
     "AuthenticationError",
     "AuthorizationError",
+    "ChatBusyError",
     "ConflictError",
     "ConversationNotFoundError",
     "EmailAlreadyExistsError",
@@ -34,6 +41,8 @@ __all__ = [
     "InvalidCursorError",
     "NotFoundError",
     "OriginNotAllowedError",
+    "RateLimitError",
+    "RateLimitExceededError",
     "SessionInvalidError",
     "ValidationError",
 ]
@@ -41,6 +50,7 @@ __all__ = [
 # كل الأصناف الملموسة للتسجيل الصريح في المعالج المركزي.
 ALL_ERRORS: tuple[type[AppError], ...] = (
     AccountInactiveError,
+    ChatBusyError,
     ConversationNotFoundError,
     EmailAlreadyExistsError,
     EventConnectionRequiredError,
@@ -49,5 +59,6 @@ ALL_ERRORS: tuple[type[AppError], ...] = (
     InvalidRoleError,
     NotFoundError,
     OriginNotAllowedError,
+    RateLimitExceededError,
     SessionInvalidError,
 )

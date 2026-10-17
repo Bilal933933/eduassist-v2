@@ -223,3 +223,31 @@ def test_logout_returns_unified_success(monkeypatch) -> None:
         assert response.json() == {"success": True, "data": {"logged_out": True}}
     finally:
         app.dependency_overrides.clear()
+
+
+def test_login_rate_limited_after_max_attempts(monkeypatch) -> None:
+    """محاولات الدخول المتكررة من عنوان واحد تُحجب بـ 429."""
+    import api.deps as deps
+    from security.rate_limiter import SlidingWindowRateLimiter
+    from services.auth_service import InvalidCredentialsError
+
+    monkeypatch.setattr(deps, "auth_limiter", SlidingWindowRateLimiter(2, 60))
+    session = Mock()
+    session.commit = AsyncMock()
+    _override_db(monkeypatch, session)
+
+    async def fake_login(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise InvalidCredentialsError
+
+    monkeypatch.setattr(auth_routes, "login_user", fake_login)
+    try:
+        client = TestClient(app)
+        payload = {"email": "t@example.com", "password": "خاطئة"}
+        assert client.post("/api/auth/login", json=payload).status_code == 401
+        assert client.post("/api/auth/login", json=payload).status_code == 401
+        blocked = client.post("/api/auth/login", json=payload)
+        assert blocked.status_code == 429
+        assert blocked.json()["error"]["code"] == "RATE_LIMITED"
+        assert "retry-after" in blocked.headers
+    finally:
+        app.dependency_overrides.clear()

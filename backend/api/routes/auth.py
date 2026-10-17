@@ -1,10 +1,15 @@
 """مسارات المصادقة: التسجيل والدخول والخروج والمستخدم الحالي."""
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_user, get_db, require_trusted_origin
+from api.deps import (
+    get_current_user,
+    get_db,
+    limit_auth_attempts,
+    require_trusted_origin,
+)
 from api.schemas.auth import LoginRequest, LogoutResponse, RegisterRequest, UserResponse
 from api.schemas.common import SuccessResponse, ok
 from config.settings import settings
@@ -13,17 +18,32 @@ from services.auth_service import login_user, logout_user, register_user
 router = APIRouter(prefix="/api/auth", tags=["مصادقة"])
 
 
+class _CookieAttributes(TypedDict):
+    """أعلام الكوكي المشتركة بين الضبط والحذف."""
+
+    httponly: bool
+    secure: bool
+    samesite: Literal["lax"]
+    path: str
+
+
+def _cookie_attributes() -> _CookieAttributes:
+    """أعلام الكوكي الموحدة للضبط والحذف (يجب أن تتطابق ليقبل المتصفح الحذف)."""
+    return {
+        "httponly": True,
+        "secure": settings.is_production,
+        "samesite": "lax",
+        "path": "/",
+    }
+
+
 def _set_session_cookie(response: Response, raw_token: str) -> None:
     """ضبط كوكي الجلسة كـ HttpOnly مع Lax."""
-    is_production = settings.ENV == "production"
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
         value=raw_token,
         max_age=settings.AUTH_SESSION_DAYS * 24 * 3600,
-        httponly=True,
-        secure=is_production,
-        samesite="lax",
-        path="/",
+        **_cookie_attributes(),
     )
 
 
@@ -48,6 +68,7 @@ async def register(
     response: Response,
     session: AsyncSession = Depends(get_db),  # noqa: B008
     _: None = Depends(require_trusted_origin),  # noqa: B008
+    __: None = Depends(limit_auth_attempts),  # noqa: B008
 ) -> dict:
     """إنشاء حساب جديد وبدء جلسة له (الأخطاء للمعالج المركزي)."""
     user, raw_token = await register_user(
@@ -69,6 +90,7 @@ async def login(
     response: Response,
     session: AsyncSession = Depends(get_db),  # noqa: B008
     _: None = Depends(require_trusted_origin),  # noqa: B008
+    __: None = Depends(limit_auth_attempts),  # noqa: B008
 ) -> dict:
     """تسجيل الدخول وبدء جلسة جديدة (الأخطاء للمعالج المركزي)."""
     user, raw_token = await login_user(
@@ -96,7 +118,10 @@ async def logout(
     if raw_token:
         await logout_user(session, raw_token)
         await session.commit()
-    response.delete_cookie(key=settings.AUTH_COOKIE_NAME, path="/")
+    response.delete_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        **_cookie_attributes(),
+    )
     return ok({"logged_out": True})
 
 

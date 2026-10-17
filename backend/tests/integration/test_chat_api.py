@@ -1,5 +1,6 @@
 """اختبارات تكامل مسار المحادثة مع قناة الأحداث."""
 import asyncio
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -47,7 +48,14 @@ def _override_auth(user: Mock | None) -> None:
     async def fake_get_db():  # type: ignore[no-untyped-def]
         yield session
 
+    @asynccontextmanager
+    async def fake_session_factory():  # type: ignore[no-untyped-def]
+        yield session
+
     app.dependency_overrides[chat_routes.get_db] = fake_get_db
+    app.dependency_overrides[chat_routes.get_session_factory] = (
+        lambda: fake_session_factory
+    )
     if user is None:
         app.dependency_overrides.pop(chat_routes.get_current_user, None)
     else:
@@ -74,7 +82,7 @@ def test_chat_sends_events_to_connected_frontend(fake_websocket) -> None:
                 "message": "مرحبًا",
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
         assert response.json() == {
             "success": True,
             "data": {
@@ -98,7 +106,7 @@ def test_chat_sends_events_to_connected_frontend(fake_websocket) -> None:
             },
         ]
     finally:
-        chat_server.disconnect(str(user.id), str(conversation_id))
+        chat_server.disconnect(str(user.id), str(conversation_id), fake_websocket)
         app.dependency_overrides.clear()
 
 
@@ -199,4 +207,89 @@ def test_conversation_list_uses_paged_envelope() -> None:
             "data": {"items": [], "next_cursor": None},
         }
     finally:
+        app.dependency_overrides.clear()
+
+
+class _FailingGraph:
+    """رسم يفشل أثناء البث لفحص مسار الفشل الخلفي."""
+
+    def astream_events(self, state, config, version):  # type: ignore[no-untyped-def]
+        """مولد يرمي استثناءً عند أول تكرار."""
+        _ = state, config, version
+
+        async def stream():  # type: ignore[no-untyped-def]
+            raise RuntimeError("model unavailable")
+            yield {}
+
+        return stream()
+
+
+def _post_chat(conversation_id):  # type: ignore[no-untyped-def]
+    """إرسال رسالة قصيرة لمسار المحادثة."""
+    return TestClient(app).post(
+        "/api/chat",
+        json={"conversation_id": str(conversation_id), "message": "مرحبًا"},
+    )
+
+
+def test_graph_failure_returns_202_and_emits_failed_event(fake_websocket) -> None:
+    """فشل الرسم لا يغير قبول HTTP؛ يصل الفشل عبر المقبس فقط."""
+    from services.chat_runs import active_chat_runs
+
+    user = _fake_user()
+    conversation_id = uuid4()
+    _override_auth(user)
+    app.state.graph = _FailingGraph()
+    asyncio.run(chat_server.connect(str(user.id), str(conversation_id), fake_websocket))
+    try:
+        response = _post_chat(conversation_id)
+        assert response.status_code == 202
+        assert [event["type"] for event in fake_websocket.events] == [
+            "chat.started",
+            "chat.failed",
+        ]
+        assert "model unavailable" not in str(fake_websocket.events)
+        # التشغيل محرر: رسالة جديدة لا تُرفض بـ CHAT_BUSY.
+        assert active_chat_runs.try_begin(str(user.id), str(conversation_id))
+    finally:
+        chat_server.disconnect(str(user.id), str(conversation_id), fake_websocket)
+        app.dependency_overrides.clear()
+
+
+def test_chat_rejects_second_message_while_running(fake_websocket) -> None:
+    """رسالة ثانية أثناء تشغيل نشط للمحادثة تُرفض بـ 409 CHAT_BUSY."""
+    from services.chat_runs import active_chat_runs
+
+    user = _fake_user()
+    conversation_id = uuid4()
+    _override_auth(user)
+    asyncio.run(chat_server.connect(str(user.id), str(conversation_id), fake_websocket))
+    active_chat_runs.try_begin(str(user.id), str(conversation_id))
+    try:
+        response = _post_chat(conversation_id)
+        assert response.status_code == 409
+        assert response.json()["error"]["code"] == "CHAT_BUSY"
+    finally:
+        chat_server.disconnect(str(user.id), str(conversation_id), fake_websocket)
+        app.dependency_overrides.clear()
+
+
+def test_chat_rate_limit_returns_429(fake_websocket, monkeypatch) -> None:
+    """تجاوز حد رسائل المستخدم يرجع 429 مع Retry-After."""
+    import api.deps as deps
+    from security.rate_limiter import SlidingWindowRateLimiter
+
+    monkeypatch.setattr(deps, "chat_limiter", SlidingWindowRateLimiter(1, 60))
+    user = _fake_user()
+    conversation_id = uuid4()
+    _override_auth(user)
+    asyncio.run(chat_server.connect(str(user.id), str(conversation_id), fake_websocket))
+    try:
+        assert _post_chat(conversation_id).status_code == 202
+        limited = _post_chat(conversation_id)
+        assert limited.status_code == 429
+        assert limited.json()["error"]["code"] == "RATE_LIMITED"
+        assert int(limited.headers["retry-after"]) >= 1
+    finally:
+        chat_server.disconnect(str(user.id), str(conversation_id), fake_websocket)
         app.dependency_overrides.clear()

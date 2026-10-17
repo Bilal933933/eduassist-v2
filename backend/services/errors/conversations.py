@@ -17,3 +17,10 @@ class EventConnectionRequiredError(ConflictError):
 
     code = "EVENT_CONNECTION_REQUIRED"
     message = "يجب فتح اتصال الأحداث قبل إرسال الرسالة."
+
+
+class ChatBusyError(ConflictError):
+    """خطأ يدل على أن المحادثة ما زالت تعالج رسالة سابقة."""
+
+    code = "CHAT_BUSY"
+    message = "المساعد ما زال يعالج رسالتك السابقة."

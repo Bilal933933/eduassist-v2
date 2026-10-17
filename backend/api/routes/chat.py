@@ -1,10 +1,16 @@
 """مسار HTTP لإرسال رسائل المحادثة وإنشاء المحادثات."""
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_user, get_db, require_trusted_origin
+from api.deps import (
+    get_current_user,
+    get_db,
+    get_session_factory,
+    limit_chat_messages,
+    require_trusted_origin,
+)
 from api.schemas.chat import (
     ChatAccepted,
     ChatRequest,
@@ -16,8 +22,9 @@ from api.schemas.chat import (
 )
 from api.schemas.common import SuccessResponse, ok
 from db.models import User
+from db.session import SessionFactory
 from services.chat_service import create_conversation as create_conversation_service
-from services.chat_service import process_chat
+from services.chat_service import accept_chat, run_chat
 from services.conversation_service import (
     MAX_LIMIT,
     get_conversation_messages,
@@ -27,27 +34,39 @@ from services.conversation_service import (
 router = APIRouter(prefix="/api", tags=["محادثة"])
 
 
-@router.post("/chat", response_model=SuccessResponse[ChatAccepted])
+@router.post(
+    "/chat",
+    response_model=SuccessResponse[ChatAccepted],
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def chat(
     payload: ChatRequest,
+    background_tasks: BackgroundTasks,
     http_request: Request,
     session: AsyncSession = Depends(get_db),  # noqa: B008
+    session_factory: SessionFactory = Depends(get_session_factory),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
     _: None = Depends(require_trusted_origin),  # noqa: B008
+    __: None = Depends(limit_chat_messages),  # noqa: B008
 ) -> dict:
-    """تحويل طلب HTTP إلى استدعاء لخدمة المحادثة بمالك من الجلسة."""
-    await process_chat(
-        http_request.app.state.graph,
+    """قبول الرسالة فورًا (202) وتشغيل الرسم في الخلفية مع إشعار عبر المقبس."""
+    accepted = await accept_chat(
         session,
         user.id,
         payload.conversation_id,
         payload.message,
         user.role,
     )
-    accepted = ChatAccepted(
+    background_tasks.add_task(
+        run_chat,
+        http_request.app.state.graph,
+        session_factory,
+        accepted,
+    )
+    result = ChatAccepted(
         conversation_id=payload.conversation_id, accepted=True
     ).model_dump(mode="json")
-    return ok(accepted)
+    return ok(result)
 
 
 @router.post(

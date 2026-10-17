@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e5]:
+        - paragraph [ref=e6]: EduAssist V2
+        - heading "المساعد النحوي" [level=1] [ref=e7]
+        - paragraph [ref=e8]: مساعد تعليمي ذكي للغة العربية — اسأل عن القواعد واحفظ محادثاتك.
+        - button "أكمل كـ طالب اختبار" [ref=e9]
+      - generic [ref=e10]:
+        - generic [ref=e12]:
+          - paragraph [ref=e15]: شروح القواعد
+          - paragraph [ref=e16]: إجابات تعليمية منظمة في النحو والصرف.
+        - generic [ref=e18]:
+          - paragraph [ref=e22]: محادثات محفوظة
+          - paragraph [ref=e23]: سجل كل نقاشاتك وارجع إليها في أي وقت.
+        - generic [ref=e25]:
+          - paragraph [ref=e29]: ردود فورية
+          - paragraph [ref=e30]: بث لحظي للرد مع مؤشر كتابة حي.
+  - region "Notifications alt+T"
+  - alert [ref=e31]

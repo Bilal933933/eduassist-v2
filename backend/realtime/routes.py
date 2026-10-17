@@ -40,4 +40,4 @@ async def events_socket(websocket: WebSocket, conversation_id: UUID) -> None:
     except WebSocketDisconnect:
         pass
     finally:
-        chat_server.disconnect(user_id, conversation_key)
+        chat_server.disconnect(user_id, conversation_key, websocket)

@@ -1,0 +1,41 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - generic [ref=f2e6]:
+      - generic [ref=f2e7]:
+        - generic [ref=f2e8]:
+          - paragraph [ref=f2e9]: المساعد النحوي
+          - paragraph [ref=f2e10]: مرحبًا، طالب اختبار
+        - button "جديد" [ref=f2e11]
+      - separator [ref=f2e12]
+      - link "اشرح لي الفرق بين الفاعل ونائب الفاعل 16 أكتوبر" [ref=f2e14] [cursor=pointer]:
+        - /url: /chat/8423564f-00ee-4e0a-ae80-73fd485822de
+        - generic [ref=f2e15]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+        - generic [ref=f2e17]: 16 أكتوبر
+      - separator [ref=f2e18]
+      - button "تسجيل الخروج" [ref=f2e20]
+    - generic [ref=f2e22]:
+      - generic [ref=f2e23]:
+        - heading "اشرح لي الفرق بين الفاعل ونائب الفاعل" [level=1] [ref=f2e24]
+        - generic [ref=f2e25]: متصل
+      - generic [ref=f2e27]:
+        - generic [ref=f2e28]:
+          - paragraph [ref=f2e29]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+          - generic [ref=f2e30]: 03:53 م
+        - generic [ref=f2e31]:
+          - paragraph [ref=f2e32]: "أهلاً بك. إليك الفرق باختصار: 1. **الفاعل:** * هو اسم مرفوع يدل على **من قام الفعل**، ويكون فعله مبنياً للمعلوم. * **مثال:** \"شَرحَ **المعلمُ** الدرسَ\" (المعلم: فاعل مرفوع). 2. **نائب الفاعل:** * هو اسم مرفوع **حلّ محل الفاعل المحذوف** بعد بناء الفعل للمجهول (تغيير صغته)، ويدل على من وقع عليه الفعل. * **مثال:** \"شُرِحَ **الدرسُ**\" (الدرسُ: نائب فاعل مرفوع، وحلّ محل الفاعل المحذوف). **باختصار:** الفاعل معلوم (مذكور من فعل الفعل)، ونائب الفاعل يأتي عندما يُحذف الفاعل ويُبنى الفعل للمجهول."
+          - generic [ref=f2e33]: 03:53 م
+        - generic [ref=f2e34]:
+          - paragraph [ref=f2e35]: أعطني مثالا آخر
+          - generic [ref=f2e36]: 03:54 م
+        - generic [ref=f2e37]:
+          - paragraph [ref=f2e38]: "أهلاً بك! يرجى توضيح القاعدة النحوية أو الموضوع الذي تريد مثالاً إضافياً عليه (مثل: نحوية، صرفية، بلاغية، أو إملاء)، وسأقدم لك مثالاً واضحاً ومباشراً فوراً."
+          - generic [ref=f2e39]: 03:54 م
+        - generic [ref=f2e40]:
+          - paragraph [ref=f2e41]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+          - generic [ref=f2e42]: 04:05 م
+        - paragraph [ref=f2e46]: يفكر المساعد
+      - generic [ref=f2e43]:
+        - textbox "اكتب رسالتك..." [disabled]
+        - button "إرسال" [disabled]
+  - region "Notifications alt+T"
+  - alert [ref=f2e4]

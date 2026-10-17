@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - main [ref=e32]:
+    - generic [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - paragraph [ref=e37]: المساعد النحوي
+          - paragraph [ref=e38]: مرحبًا، طالب اختبار
+        - button "جديد" [ref=e39]
+      - separator [ref=e40]
+      - generic [ref=e41]:
+        - link "اشرح لي الفرق بين الفاعل ونائب الفاعل 17 أكتوبر" [ref=e56] [cursor=pointer]:
+          - /url: /chat/d14cfe9c-590a-4f2d-a1f9-6bdc9f115ec8
+          - generic [ref=e57]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+          - generic [ref=e59]: 17 أكتوبر
+        - link "اشرح لي الفرق بين الفاعل ونائب الفاعل 16 أكتوبر" [ref=e42] [cursor=pointer]:
+          - /url: /chat/8423564f-00ee-4e0a-ae80-73fd485822de
+          - generic [ref=e43]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+          - generic [ref=e45]: 16 أكتوبر
+      - separator [ref=e46]
+      - button "تسجيل الخروج" [ref=e48]
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - heading "اشرح لي الفرق بين الفاعل ونائب الفاعل" [level=1] [ref=e62]
+        - generic [ref=e63]: متصل
+      - generic [ref=e65]:
+        - generic [ref=e74]:
+          - paragraph [ref=e75]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+          - generic [ref=e76]: 12:00 ص
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: "أهلاً بك. إليك الفرق باختصار: 1. **الفاعل:** هو اسم مرفوع يدل على من قام الفعل، ويأتي بعد **فعل مبني للمعلوم** (مثل: *شربَ **الولدُ** الحليبَ*). 2. **نائب الفاعل:** هو اسم مرفوع حل محل الفاعل بعد حذفه، ويأتي بعد **فعل مبني للمجهول**، حيث يتغير ضبط الفعل وتتحول المفعول به ليرفع ويصبح نائب فاعل (مثل: *شُرِبَ **الحليبُ***)."
+          - generic [ref=e79]: 12:00 ص
+        - generic [ref=e85]:
+          - paragraph [ref=e86]: ما الذي كنا نتحدث عنه؟
+          - generic [ref=e87]: 12:01 ص
+        - generic [ref=e88]:
+          - paragraph [ref=e89]: كنا نتحدث عن **الفرق بين الفاعل ونائب الفاعل** في النحو العربي، وكيف يأتي الفاعل مع الفعل المبني للمعلوم، بينما يأتي نائب الفاعل مع الفعل المبني للمجهول ليحل محل الفاعل المحذوف. هل ترغب في متابعة هذا الموضوع أو لديك سؤال آخر؟
+          - generic [ref=e90]: 12:02 ص
+        - generic [ref=e91]:
+          - paragraph [ref=e92]: كتف امك
+          - generic [ref=e93]: 12:03 ص
+        - generic [ref=e94]:
+          - paragraph [ref=e95]: عفواً، لا أستطيع الرد بهذا الأسلوب. نرجو الحفاظ على الاحترام المتبادل في حديثنا. هل نبدأ من جديد ونطرح سؤالاً تعليمياً نود استكشافه معاً؟
+          - generic [ref=e96]: 12:03 ص
+        - generic [ref=e101]:
+          - paragraph [ref=e102]: كتف امك
+          - generic [ref=e103]: 12:04 ص
+        - generic [ref=e104]:
+          - paragraph [ref=e105]: أهلاً بك. أرجو الالتزام بالاحترام المتبادل في حديثنا. لا يمكنني الرد على هذه العبارات. هل ترغب في أن نعود لمتابعة أسئلتك التعليمية وموضوعنا الدراسي؟
+          - generic [ref=e106]: 12:05 ص
+        - paragraph [ref=e107]: يفكر المساعد
+      - generic [ref=e73]:
+        - textbox "اكتب رسالتك..." [disabled]
+        - button "إرسال" [disabled]
+  - region "Notifications alt+T"
+  - alert [ref=e31]: المساعد النحوي | EduAssist V2

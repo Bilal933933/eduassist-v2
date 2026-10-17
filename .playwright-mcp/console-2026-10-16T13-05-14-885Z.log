@@ -1,0 +1,2 @@
+[   73850ms] [ERROR] Access to fetch at 'http://127.0.0.1:5002/api/chat' from origin 'http://127.0.0.1:3005' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:3005/chat/8423564f-00ee-4e0a-ae80-73fd485822de:0
+[   73851ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:5002/api/chat:0

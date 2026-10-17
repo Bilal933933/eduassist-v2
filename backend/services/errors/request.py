@@ -1,5 +1,5 @@
 """أخطاء الطلب الوارد (Request Errors)."""
-from services.errors.base import AuthorizationError, ValidationError
+from services.errors.base import AuthorizationError, RateLimitError, ValidationError
 
 
 class OriginNotAllowedError(AuthorizationError):
@@ -14,3 +14,10 @@ class InvalidCursorError(ValidationError):
 
     code = "INVALID_CURSOR"
     message = "مؤشر الصفحة غير صالح."
+
+
+class RateLimitExceededError(RateLimitError):
+    """خطأ يدل على تجاوز الحد المسموح من الطلبات."""
+
+    code = "RATE_LIMITED"
+    message = "عدد الطلبات كبير جدًا. حاول بعد قليل."

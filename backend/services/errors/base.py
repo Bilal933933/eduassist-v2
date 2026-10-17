@@ -29,6 +29,14 @@ class AuthorizationError(AppError):
     """أساس أخطاء رفض الصلاحية بعد معرفة هوية المستخدم."""
 
 
+class RateLimitError(AppError):
+    """أساس أخطاء تجاوز حد الطلبات مع زمن الانتظار المقترح بالثواني."""
+
+    def __init__(self, retry_after: int = 1) -> None:
+        self.retry_after = max(1, retry_after)
+        super().__init__(self.message)
+
+
 # ─── أسماء الموارد بالعربية لاشتقاق الرسائل ───
 RESOURCE_NAMES: dict[str, str] = {
     "conversation": "المحادثة",

@@ -15,6 +15,7 @@ from services.errors import (
     AuthorizationError,
     ConflictError,
     NotFoundError,
+    RateLimitError,
     ValidationError,
 )
 
@@ -26,6 +27,7 @@ ERROR_STATUS_BY_CATEGORY: tuple[tuple[type[AppError], int], ...] = (
     (AuthorizationError, status.HTTP_403_FORBIDDEN),
     (NotFoundError, status.HTTP_404_NOT_FOUND),
     (ConflictError, status.HTTP_409_CONFLICT),
+    (RateLimitError, status.HTTP_429_TOO_MANY_REQUESTS),
     (ValidationError, status.HTTP_422_UNPROCESSABLE_CONTENT),
 )
 
@@ -42,9 +44,15 @@ async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
     """تحويل خطأ تطبيق معروف إلى استجابة HTTP موحدة."""
     _ = request
     status_code = status_for_error(exc)
+    headers = (
+        {"Retry-After": str(exc.retry_after)}
+        if isinstance(exc, RateLimitError)
+        else None
+    )
     return JSONResponse(
         status_code=status_code,
         content=fail(exc.code, exc.message),
+        headers=headers,
     )
 
 

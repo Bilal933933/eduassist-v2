@@ -6,7 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from db.repositories import AuthSessionRepository, UserRepository
-from security.passwords import hash_password, verify_and_update_password
+from security.passwords import (
+    burn_password_verification,
+    hash_password,
+    verify_and_update_password,
+)
 from security.session_tokens import generate_token, hash_token
 from services.errors import (
     AccountInactiveError,
@@ -63,9 +67,9 @@ async def login_user(
     users = UserRepository(session)
     user = await users.get_by_email(email)
     if user is None:
+        # زمن تحقق مماثل للحساب الموجود حتى لا يكشف الفرق الزمني وجود البريد.
+        burn_password_verification(password)
         raise InvalidCredentialsError
-    if not user.is_active:  # type: ignore[attr-defined]
-        raise AccountInactiveError(user.id)  # type: ignore[arg-type]
     try:
         valid, updated_hash = verify_and_update_password(
             password,
@@ -75,6 +79,9 @@ async def login_user(
         raise InvalidCredentialsError from None
     if not valid:
         raise InvalidCredentialsError
+    # حالة الحساب لا تُكشف إلا لمن أثبت معرفة كلمة المرور الصحيحة.
+    if not user.is_active:  # type: ignore[attr-defined]
+        raise AccountInactiveError(user.id)  # type: ignore[arg-type]
     if updated_hash is not None:
         user.password_hash = updated_hash  # type: ignore[attr-defined]
     raw_token = await _create_session(session, user.id, session_days)  # type: ignore[arg-type]

@@ -1,5 +1,9 @@
 """خادم اتصالات وأحداث المحادثة بعقد منفصل عن HTTP."""
+import logging
+
 from fastapi import WebSocket
+
+logger = logging.getLogger("eduassist.realtime")
 
 
 def started_event(conversation_id: str) -> dict:
@@ -30,25 +34,36 @@ def failed_event(code: str, message: str) -> dict:
 
 
 class ChatServer:
-    """إدارة اتصال واحد داخل الذاكرة لكل مستخدم ومحادثة."""
+    """إدارة اتصالات الأحداث داخل الذاكرة: عدة اتصالات لكل مستخدم ومحادثة.
+
+    الحالة محلية لعملية واحدة؛ التوسع الأفقي يتطلب ناقلًا مشتركًا (مثل Redis Pub/Sub).
+    """
 
     def __init__(self) -> None:
-        self._connections: dict[tuple[str, str], WebSocket] = {}
+        self._connections: dict[tuple[str, str], set[WebSocket]] = {}
 
     async def connect(
         self, user_id: str, conversation_id: str, websocket: WebSocket
     ) -> None:
-        """قبول الاتصال وتسجيله."""
+        """قبول الاتصال وإضافته إلى اتصالات المحادثة (تبويبات متعددة مسموحة)."""
         await websocket.accept()
-        self._connections[(user_id, conversation_id)] = websocket
+        self._connections.setdefault((user_id, conversation_id), set()).add(websocket)
 
-    def disconnect(self, user_id: str, conversation_id: str) -> None:
-        """حذف الاتصال إذا انتهى."""
-        self._connections.pop((user_id, conversation_id), None)
+    def disconnect(
+        self, user_id: str, conversation_id: str, websocket: WebSocket
+    ) -> None:
+        """حذف هذا الاتصال فقط دون المساس باتصالات التبويبات الأخرى."""
+        key = (user_id, conversation_id)
+        sockets = self._connections.get(key)
+        if sockets is None:
+            return
+        sockets.discard(websocket)
+        if not sockets:
+            del self._connections[key]
 
     def is_connected(self, user_id: str, conversation_id: str) -> bool:
-        """التحقق من وجود اتصال مفتوح للمحادثة."""
-        return (user_id, conversation_id) in self._connections
+        """التحقق من وجود اتصال مفتوح واحد على الأقل للمحادثة."""
+        return bool(self._connections.get((user_id, conversation_id)))
 
     async def send_started(self, user_id: str, conversation_id: str) -> None:
         """إرسال حدث بدء معالجة الرسالة."""
@@ -71,9 +86,16 @@ class ChatServer:
     async def _send(
         self, user_id: str, conversation_id: str, event: dict
     ) -> None:
-        """إرسال حدث خام إلى اتصال المحادثة."""
-        websocket = self._connections[(user_id, conversation_id)]
-        await websocket.send_json(event)
+        """بث الحدث لكل اتصال حي؛ الاتصال الميت يُسقَط ولا يُفشل المعالجة."""
+        sockets = list(self._connections.get((user_id, conversation_id), ()))
+        for websocket in sockets:
+            try:
+                await websocket.send_json(event)
+            except Exception:
+                logger.warning(
+                    "تعذر إرسال حدث %s؛ إسقاط اتصال ميت.", event.get("type")
+                )
+                self.disconnect(user_id, conversation_id, websocket)
 
 
 chat_server = ChatServer()

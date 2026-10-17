@@ -5,6 +5,9 @@ from pwdlib.exceptions import PwdlibError
 
 _password_hash = PasswordHash.recommended()
 
+# تجزئة ثابتة تُحسب مرة واحدة لمعادلة زمن الدخول عند غياب الحساب.
+_DUMMY_HASH = _password_hash.hash("eduassist-timing-equalization")
+
 
 def hash_password(plain: str) -> str:
     """تحويل كلمة خام إلى تجزئة أرغون2 للتخزين."""
@@ -25,3 +28,8 @@ def verify_and_update_password(plain: str, stored: str) -> tuple[bool, str | Non
         return _password_hash.verify_and_update(plain, stored)
     except (PwdlibError, ValueError, TypeError, AttributeError):
         return False, None
+
+
+def burn_password_verification(plain: str) -> None:
+    """إنفاق زمن تحقق أرغون2 كاملًا لإخفاء الفرق الزمني بين الحساب الغائب والموجود."""
+    verify_password(plain, _DUMMY_HASH)

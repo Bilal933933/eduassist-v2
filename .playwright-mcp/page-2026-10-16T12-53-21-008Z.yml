@@ -1,0 +1,29 @@
+- generic [active] [ref=e1]:
+  - main [ref=e28]:
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - paragraph [ref=e33]: المساعد النحوي
+          - paragraph [ref=e34]: مرحبًا، طالب اختبار
+        - button "جديد" [ref=e35]
+      - separator [ref=e36]
+      - link "اشرح لي الفرق بين الفاعل ونائب الفاعل 16 أكتوبر" [ref=e50] [cursor=pointer]:
+        - /url: /chat/8423564f-00ee-4e0a-ae80-73fd485822de
+        - generic [ref=e51]: اشرح لي الفرق بين الفاعل ونائب الفاعل
+        - generic [ref=e53]: 16 أكتوبر
+      - separator [ref=e39]
+      - button "تسجيل الخروج" [ref=e41]
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - heading "اشرح لي الفرق بين الفاعل ونائب الفاعل" [level=1] [ref=e56]
+        - generic [ref=e57]: متصل
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - paragraph [ref=e61]: لا رسائل بعد
+          - paragraph [ref=e62]: ابدأ بسؤال بسيط.
+        - paragraph [ref=e63]: يفكر المساعد
+      - generic [ref=e67]:
+        - textbox "اكتب رسالتك..." [disabled]
+        - button "إرسال" [disabled]
+  - region "Notifications alt+T"
+  - alert [ref=e27]: المساعد النحوي | EduAssist V2

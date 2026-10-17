@@ -1,0 +1,28 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e57]:
+    - generic [ref=f3e58]:
+      - generic [ref=f3e59]:
+        - paragraph [ref=f3e60]: EduAssist V2
+        - heading "تسجيل الدخول" [level=1] [ref=f3e61]
+      - generic [ref=f3e62]:
+        - generic [ref=f3e63]:
+          - generic [ref=f3e64]: تسجيل الدخول
+          - generic [ref=f3e65]: ادخل ببريدك وكلمة مرورك لمتابعة محادثاتك.
+        - generic [ref=f3e67]:
+          - generic [ref=f3e68]:
+            - generic [ref=f3e69]: البريد الإلكتروني
+            - textbox "البريد الإلكتروني" [ref=f3e70]:
+              - /placeholder: name@example.com
+          - generic [ref=f3e71]:
+            - generic [ref=f3e72]: كلمة المرور
+            - generic [ref=f3e73]:
+              - textbox "كلمة المرور" [ref=f3e74]:
+                - /placeholder: ••••••••
+              - button "إظهار كلمة المرور" [ref=f3e75]
+          - button "دخول" [ref=f3e79]
+      - paragraph [ref=f3e80]:
+        - text: ليس لديك حساب؟
+        - link "أنشئ حسابًا" [ref=f3e81] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications alt+T"
+  - alert [ref=f3e35]: المساعد النحوي | EduAssist V2

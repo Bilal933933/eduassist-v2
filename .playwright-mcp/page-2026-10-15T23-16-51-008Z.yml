@@ -1,0 +1,21 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e36]:
+    - generic [ref=f3e38]:
+      - generic [ref=f3e39]:
+        - generic [ref=f3e40]:
+          - paragraph [ref=f3e41]: المساعد النحوي
+          - paragraph [ref=f3e42]: مرحبًا، طالب اختبار
+        - button "جديد" [ref=f3e43]
+      - separator [ref=f3e44]
+      - paragraph [ref=f3e46]: لا محادثات بعد — ابدأ واحدة جديدة.
+      - separator [ref=f3e47]
+      - button "تسجيل الخروج" [ref=f3e49]
+    - generic [ref=f3e51]:
+      - generic [ref=f3e52]:
+        - paragraph [ref=f3e53]: محادثة جديدة
+        - paragraph [ref=f3e54]: "اكتب أول رسالة — تُنشأ المحادثة عند الإرسال فقط. مثال: اشرح لي الفرق بين الفاعل ونائب الفاعل."
+      - generic [ref=f3e55]:
+        - textbox "اكتب رسالتك..." [ref=f3e56]
+        - button "إرسال" [disabled]
+  - region "Notifications alt+T"
+  - alert [ref=f3e35]

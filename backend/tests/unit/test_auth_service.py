@@ -118,3 +118,29 @@ def test_expired_session_is_not_valid() -> None:
     sql = str(statement)
     assert "auth_sessions.expires_at >" in sql
     assert "auth_sessions.revoked_at IS NULL" in sql
+
+
+def test_login_unknown_email_still_burns_verification(monkeypatch) -> None:
+    """البريد الغائب يستهلك زمن تحقق مماثلًا ثم يُرفض بالخطأ العام."""
+    import services.auth_service as auth_service
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        auth_service, "burn_password_verification", lambda plain: calls.append(plain)
+    )
+    session = _session_with(user=None)
+    with pytest.raises(InvalidCredentialsError):
+        asyncio.run(login_user(session, "none@example.com", "أي-كلمة-123"))
+    assert calls == ["أي-كلمة-123"]
+
+
+def test_inactive_account_hidden_without_correct_password() -> None:
+    """الحساب الموقوف مع كلمة خاطئة يعيد الخطأ العام فلا تُكشف حالته."""
+    from security.passwords import hash_password
+
+    user = Mock()
+    user.password_hash = hash_password("الصحيحة-123")
+    user.is_active = False
+    session = _session_with(user=user)
+    with pytest.raises(InvalidCredentialsError):
+        asyncio.run(login_user(session, "t@example.com", "الخاطئة-456"))

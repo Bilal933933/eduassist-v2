@@ -7,12 +7,14 @@ from services.errors import (
     ALL_ERRORS,
     AccountInactiveError,
     AppError,
+    ChatBusyError,
     EmailAlreadyExistsError,
     EventConnectionRequiredError,
     InvalidCredentialsError,
     InvalidRoleError,
     NotFoundError,
     OriginNotAllowedError,
+    RateLimitExceededError,
     SessionInvalidError,
 )
 from services.errors.handlers import (
@@ -49,6 +51,8 @@ def test_each_app_error_has_unified_shape() -> None:
         (NotFoundError("message"), 404, "MESSAGE_NOT_FOUND"),
         (NotFoundError("unknown-thing", "رسالة مخصصة."), 404, "UNKNOWN-THING_NOT_FOUND"),
         (EventConnectionRequiredError(), 409, "EVENT_CONNECTION_REQUIRED"),
+        (ChatBusyError(), 409, "CHAT_BUSY"),
+        (RateLimitExceededError(), 429, "RATE_LIMITED"),
     ]
     for exc, expected_status, expected_code in cases:
         response = asyncio.run(handle_app_error(_request(), exc))
@@ -102,3 +106,15 @@ def test_validation_error_lists_fields() -> None:
     assert body["error"]["details"] == [
         {"field": "body.password", "message": "Field required"}
     ]
+
+
+def test_rate_limit_error_sends_retry_after_header() -> None:
+    """خطأ تجاوز المعدل يرجع 429 مع ترويسة Retry-After."""
+    response = asyncio.run(handle_app_error(_request(), RateLimitExceededError(42)))
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "42"
+
+
+def test_rate_limit_retry_after_has_floor_of_one_second() -> None:
+    """زمن الانتظار لا ينزل عن ثانية واحدة."""
+    assert RateLimitExceededError(0).retry_after == 1
