@@ -46,6 +46,8 @@ def create_classification_node(
     return classification_node
 
 
-def route_intent(state: AgentState) -> Intent:
+def route_intent(state: dict) -> Intent:
     """اختيار اسم العقدة التالية من التصنيف المحفوظ في الحالة."""
+    # بلا تعليق AgentState عمدًا: لانغ غراف يستنتج مخطط الدخل من التعليق
+    # فيقرأ من نقطة التفتيش بدل دمج المدخلات عند وجودها.
     return cast(Intent, state["intent"])

@@ -1,23 +1,17 @@
-"""الرسم الرئيسي للمساعد ومساراته الأولية."""
+"""الموجه الرئيسي: يستقبل الرسالة ويوجه لجراف المعلم أو الطالب."""
 
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Literal
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from orchestration.nodes import (
-    create_abuse_node,
-    create_classification_node,
-    create_general_node,
-    create_generation_node,
-    create_greeting_node,
-    create_summarize_node,
-    quick_reply_node,
-    route_intent,
-)
+from orchestration.graphs.student import build_student_graph
+from orchestration.graphs.teacher import build_teacher_graph
 from orchestration.state import AgentState
+
+RoleRoute = Literal["teacher", "student"]
 
 
 def checkpoint_config(user_id: str, conversation_id: str) -> dict:
@@ -28,6 +22,16 @@ def checkpoint_config(user_id: str, conversation_id: str) -> dict:
     return {"configurable": {"thread_id": scoped_thread_id}}
 
 
+def route_role(state: dict) -> RoleRoute:
+    """توجيه المعلم ذي البروفايل لمساره، وغيره لمسار الطالب الآمن."""
+    # بلا تعليق AgentState عمدًا: لانغ غراف يستنتج مخطط الدخل من التعليق
+    # فيقرأ من نقطة التفتيش الفارغة أول مرة بدل دمج المدخلات.
+    if state.get("user_role") != "teacher":
+        return "student"
+    brief = state.get("context", {}).get("teacher_brief", "")
+    return "teacher" if brief else "student"
+
+
 def build_graph(
     checkpointer: Any | None = None,
     *,
@@ -36,25 +40,19 @@ def build_graph(
         [str, tuple[str, ...]], Awaitable[str]
     ],
 ):
-    """تجميع الرسم الرئيسي مع حافظ نقاط التفتيش المحقون."""
-    builder = StateGraph(AgentState)
-    builder.add_node("classify", create_classification_node(classify_intent))
-    builder.add_node("greeting", create_greeting_node(call_model))
-    builder.add_node("quick_reply", quick_reply_node)
-    builder.add_node("generation", create_generation_node(call_model))
-    builder.add_node("general", create_general_node(call_model))
-    builder.add_node("abuse", create_abuse_node(call_model))
-    builder.add_node("recall", create_summarize_node(call_model))
-    builder.add_edge(START, "classify")
-    builder.add_conditional_edges(
-        "classify",
-        route_intent,
-        ["greeting", "quick_reply", "generation", "general", "abuse", "recall"],
+    """تجميع الموجه مع الجرافين الفرعيين ونقطة التفتيش المحقونة."""
+    teacher = build_teacher_graph(
+        call_model=call_model,
+        classify_intent=classify_intent,
     )
-    builder.add_edge("greeting", END)
-    builder.add_edge("quick_reply", END)
-    builder.add_edge("generation", END)
-    builder.add_edge("general", END)
-    builder.add_edge("abuse", END)
-    builder.add_edge("recall", "generation")
+    student = build_student_graph(
+        call_model=call_model,
+        classify_intent=classify_intent,
+    )
+    builder = StateGraph(AgentState)
+    builder.add_node("teacher", teacher)
+    builder.add_node("student", student)
+    builder.add_conditional_edges(START, route_role, ["teacher", "student"])
+    builder.add_edge("teacher", END)
+    builder.add_edge("student", END)
     return builder.compile(checkpointer=checkpointer or InMemorySaver())

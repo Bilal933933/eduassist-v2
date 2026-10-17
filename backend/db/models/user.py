@@ -11,6 +11,7 @@ from db.models.base import Base
 if TYPE_CHECKING:
     from db.models.auth_session import AuthSession
     from db.models.conversation import Conversation
+    from db.models.teacher_profile import TeacherProfile
 
 
 class User(Base):
@@ -56,4 +57,9 @@ class User(Base):
     auth_sessions: Mapped[list["AuthSession"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+    teacher_profile: Mapped["TeacherProfile | None"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
     )

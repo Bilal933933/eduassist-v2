@@ -42,6 +42,7 @@ async def chat(
         user.id,
         payload.conversation_id,
         payload.message,
+        user.role,
     )
     accepted = ChatAccepted(
         conversation_id=payload.conversation_id, accepted=True

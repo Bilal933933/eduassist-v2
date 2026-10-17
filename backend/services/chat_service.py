@@ -5,7 +5,12 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.repositories import ConversationRepository, MessageRepository
+from db.models import TeacherProfile
+from db.repositories import (
+    ConversationRepository,
+    MessageRepository,
+    TeacherProfileRepository,
+)
 from graph import checkpoint_config
 from realtime.chat_server import chat_server
 from services.errors import ConversationNotFoundError, EventConnectionRequiredError
@@ -20,14 +25,27 @@ __all__ = [
 ]
 
 
+def build_teacher_brief(profile: TeacherProfile | None) -> str:
+    """خلاصة مضغوطة لبيانات المعلم تصلح للحقن في السياق."""
+    if profile is None:
+        return ""
+    return (
+        f"المادة: {profile.subject}، الصف: {profile.class_name}، "
+        f"الطلاب: {profile.students_note}"
+    )[:200]
+
+
 async def process_chat(
     graph: Any,
     session: AsyncSession,
     user_id: UUID,
     conversation_id: UUID,
     message: str,
+    user_role: str = "student",
 ) -> None:
     """حفظ الرسالة وتشغيل الرسم وحفظ الرد وإصدار الأحداث."""
+    if user_role not in ("teacher", "student"):
+        user_role = "student"
     owner_key = str(user_id)
     conversation_key = str(conversation_id)
     if not chat_server.is_connected(owner_key, conversation_key):
@@ -43,11 +61,17 @@ async def process_chat(
     messages = MessageRepository(session)
     prior_rows = await messages.list_recent(conversation_id, user_id)
     generator_view = build_generator_view(prior_rows)
-    context = {
+    context: dict[str, Any] = {
         "history": generator_view["history"],
         "classifier_view": build_classifier_view(prior_rows),
         "generator_view": generator_view,
     }
+    teacher_brief = ""
+    if user_role == "teacher":
+        profile = await TeacherProfileRepository(session).get_by_user(user_id)
+        teacher_brief = build_teacher_brief(profile)
+        if teacher_brief:
+            context["teacher_brief"] = teacher_brief
     await messages.add(conversation_id, user_id, "user", message)
     conversation.updated_at = datetime.now(timezone.utc)
     await session.commit()
@@ -55,7 +79,12 @@ async def process_chat(
     await chat_server.send_started(owner_key, conversation_key)
     try:
         event_stream = graph.astream_events(
-            {"messages": [message], "user_id": owner_key, "context": context},
+            {
+                "messages": [message],
+                "user_id": owner_key,
+                "user_role": user_role,
+                "context": context,
+            },
             checkpoint_config(owner_key, conversation_key),
             version="v2",
         )

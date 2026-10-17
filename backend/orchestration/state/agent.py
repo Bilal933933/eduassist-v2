@@ -1,7 +1,6 @@
 """الحالة المشتركة بين عقد رسم المساعد."""
 
-import operator
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 from typing_extensions import TypedDict
 
@@ -13,7 +12,9 @@ Intent = Literal[
 class AgentState(TypedDict, total=False):
     """حالة صغيرة قابلة للتوسع دون ربطها بطريقة النقل."""
 
-    messages: Annotated[list[str], operator.add]
+    # بلا مجمع operator.add عمدًا: الموجه والجراف الفرعي يطبقان المدخلات
+    # كل على حدة فيضاعف المجمع الرسائل، ولا قارئ إلا messages[-1].
+    messages: list[str]
     intent: Intent
     response: str
     user_id: str

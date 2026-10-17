@@ -15,6 +15,7 @@ def _fake_user() -> Mock:
     """مستخدم وهمي بمعرف ثابت للاختبارات."""
     user = Mock()
     user.id = uuid4()
+    user.role = "student"
     return user
 
 
