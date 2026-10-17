@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary,pool]>=3.3.6",
     "alembic>=1.20.0",
     "sqlalchemy[asyncio]>=2.1.4",
+    "pgvector>=0.3.0",
     "pwdlib[argon2]>=0.3.1",
     "google-genai>=2.31.0",
 ]
