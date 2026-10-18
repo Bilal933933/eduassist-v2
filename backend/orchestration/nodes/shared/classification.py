@@ -7,7 +7,17 @@ from orchestration.state import AgentState, Intent
 from prompts.tasks import INTENT_CLASSIFICATION_TASK, INTENT_HINT
 from shared.prompt_builder import build_prompt
 
-ALLOWED_INTENTS: tuple[Intent, ...] = (
+TEACHER_INTENTS: tuple[Intent, ...] = (
+    "greeting",
+    "quick_reply",
+    "generation",
+    "general",
+    "abuse",
+    "recall",
+    "lesson_prep",
+)
+
+STUDENT_INTENTS: tuple[Intent, ...] = (
     "greeting",
     "quick_reply",
     "generation",
@@ -19,6 +29,7 @@ ALLOWED_INTENTS: tuple[Intent, ...] = (
 
 def create_classification_node(
     classify_intent: Callable[[str, tuple[str, ...]], Awaitable[str]],
+    allowed_intents: tuple[Intent, ...],
 ):
     """إنشاء عقدة تصنيف تستخدم نموذجًا محقونًا بإخراج محدود."""
 
@@ -31,15 +42,15 @@ def create_classification_node(
         prompt = build_prompt(
             message=state["messages"][-1],
             context={
-                "allowed_intents": list(ALLOWED_INTENTS),
+                "allowed_intents": list(allowed_intents),
                 "history": history,
             },
             task=f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}",
             role="intent_classifier",
         )
-        result = await classify_intent(prompt, ALLOWED_INTENTS)
+        result = await classify_intent(prompt, allowed_intents)
         intent: Intent = (
-            cast(Intent, result) if result in ALLOWED_INTENTS else "generation"
+            cast(Intent, result) if result in allowed_intents else "generation"
         )
         return {"intent": intent}
 

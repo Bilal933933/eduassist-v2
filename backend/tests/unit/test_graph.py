@@ -4,7 +4,8 @@ import json
 
 from graph import build_graph, checkpoint_config
 from orchestration.nodes import (
-    ALLOWED_INTENTS,
+    STUDENT_INTENTS,
+    TEACHER_INTENTS,
     create_classification_node,
     create_greeting_node,
     quick_reply_node,
@@ -58,13 +59,13 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
     ]
     for message, expected_intent in cases:
         async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
-            assert choices == ALLOWED_INTENTS
+            assert choices == STUDENT_INTENTS
             payload = json.loads(prompt)
             assert payload["message"] == message
             assert payload["task"].startswith(INTENT_CLASSIFICATION_TASK)
             return expected_intent
 
-        classify_node = create_classification_node(fake_classify)
+        classify_node = create_classification_node(fake_classify, STUDENT_INTENTS)
         state = {"messages": [message], "user_id": "user-1"}
         snapshot = {"messages": [message], "user_id": "user-1"}
         assert asyncio.run(classify_node(state)) == {"intent": expected_intent}
@@ -77,7 +78,7 @@ def test_classification_node_uses_generation_for_invalid_result() -> None:
         _ = prompt, choices
         return "unknown"
 
-    classify_node = create_classification_node(fake_classify)
+    classify_node = create_classification_node(fake_classify, STUDENT_INTENTS)
 
     result = asyncio.run(classify_node({"messages": ["رسالة"]}))
 

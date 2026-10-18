@@ -5,7 +5,7 @@ from typing import Any, Literal
 from typing_extensions import TypedDict
 
 Intent = Literal[
-    "greeting", "quick_reply", "generation", "general", "abuse", "recall"
+    "greeting", "quick_reply", "generation", "general", "abuse", "recall", "lesson_prep"
 ]
 
 

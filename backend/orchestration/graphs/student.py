@@ -13,6 +13,7 @@ from orchestration.nodes.shared import (
     quick_reply_node,
     route_intent,
 )
+from orchestration.nodes.shared.classification import STUDENT_INTENTS
 from orchestration.nodes.student import create_generation_node
 from orchestration.state import AgentState
 
@@ -25,7 +26,7 @@ def build_student_graph(
     """تجميع عقد مسار الطالب في رسم فرعي بلا نقاط تفتيش."""
     builder = StateGraph(AgentState)
 
-    builder.add_node("classify", create_classification_node(classify_intent))
+    builder.add_node("classify", create_classification_node(classify_intent, STUDENT_INTENTS))
     builder.add_node("greeting", create_greeting_node(call_model))
     builder.add_node("quick_reply", quick_reply_node)
     builder.add_node("generation", create_generation_node(call_model))

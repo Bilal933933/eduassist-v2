@@ -2,7 +2,8 @@
 
 
 from orchestration.nodes.shared.classification import (
-    ALLOWED_INTENTS,
+    STUDENT_INTENTS,
+    TEACHER_INTENTS,
     create_classification_node,
     route_intent,
 )
@@ -14,7 +15,8 @@ from orchestration.nodes.shared.summarize import create_summarize_node
 
 
 __all__ = [
-    "ALLOWED_INTENTS",
+    "STUDENT_INTENTS",
+    "TEACHER_INTENTS",
     "create_abuse_node",
     "create_classification_node",
     "create_general_node",

@@ -39,11 +39,13 @@ def build_graph(
     classify_intent: Callable[
         [str, tuple[str, ...]], Awaitable[str]
     ],
+    retrieval_service: Any | None = None,
 ):
     """تجميع الموجه مع الجرافين الفرعيين ونقطة التفتيش المحقونة."""
     teacher = build_teacher_graph(
         call_model=call_model,
         classify_intent=classify_intent,
+        retrieval_service=retrieval_service,
     )
     student = build_student_graph(
         call_model=call_model,

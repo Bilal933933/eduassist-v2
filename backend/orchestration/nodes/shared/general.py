@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 
 from orchestration.state import AgentState
 from prompts.system import GENERAL_SYSTEM_PROMPT
-from prompts.tasks import GENERAL_RESPONSE_TASK
+from prompts.tasks import GENERAL_RESPONSE_TASK, TEACHER_GENERAL_RESPONSE_TASK
 from shared.prompt_builder import build_prompt
 
 
@@ -15,11 +15,13 @@ def create_general_node(
 
     async def general_node(state: AgentState) -> dict:
         """تجهيز مهمة الدردشة الحرة وإعادة الرد كتحديث للحالة."""
+        is_teacher = state.get("role") == "teacher"
+        task = TEACHER_GENERAL_RESPONSE_TASK if is_teacher else GENERAL_RESPONSE_TASK
         prompt = build_prompt(
             message=state["messages"][-1],
             context=state.get("context", {}),
-            task=GENERAL_RESPONSE_TASK,
-            role="general_assistant",
+            task=task,
+            role="teacher_assistant" if is_teacher else "general_assistant",
         )
         response = await call_model(prompt, GENERAL_SYSTEM_PROMPT, 0.7)
         return {"response": response}
