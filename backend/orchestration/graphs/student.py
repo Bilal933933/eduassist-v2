@@ -15,7 +15,7 @@ from orchestration.nodes.shared import (
 )
 from orchestration.nodes.shared.classification import STUDENT_INTENTS
 from orchestration.nodes.student import create_generation_node
-from orchestration.state import AgentState
+from orchestration.state import AgentOutput, AgentState
 
 
 def build_student_graph(
@@ -24,7 +24,7 @@ def build_student_graph(
     classify_intent: Callable[[str, tuple[str, ...]], Awaitable[str]],
 ):
     """تجميع عقد مسار الطالب في رسم فرعي بلا نقاط تفتيش."""
-    builder = StateGraph(AgentState)
+    builder = StateGraph(AgentState, output_schema=AgentOutput)
 
     builder.add_node("classify", create_classification_node(classify_intent, STUDENT_INTENTS))
     builder.add_node("greeting", create_greeting_node(call_model))

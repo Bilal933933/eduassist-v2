@@ -1,4 +1,7 @@
 """اختبارات توجيه مشرف تحضير الدرس."""
+from __future__ import annotations
+
+from langgraph.graph import END
 
 from orchestration.lesson_prep.supervisor import MAX_ITERATIONS, route_next
 
@@ -123,7 +126,7 @@ def test_route_next_notes_when_no_section_9() -> None:
     assert result.goto == "notes"
 
 
-def test_route_next_assembler_when_no_final_plan() -> None:
+def test_route_next_critic_when_no_final_plan() -> None:
     state = {
         "iteration": 0,
         "retrieved_chunks": [{"text": "test"}],
@@ -136,6 +139,46 @@ def test_route_next_assembler_when_no_final_plan() -> None:
         "section_7_homework": "homework",
         "section_8_differentiation": "differentiation",
         "section_9_notes": "notes",
+    }
+    result = route_next(state)
+    assert result.goto == "critic"
+
+
+def test_route_next_critic_low_quality_returns_to_section() -> None:
+    state = {
+        "iteration": 0,
+        "retrieved_chunks": [{"text": "test"}],
+        "section_1_basic": "basic",
+        "section_2_objectives": "objectives",
+        "section_3_prior": "prior",
+        "section_4_materials": "materials",
+        "section_5_flow": "flow",
+        "section_6_assessment": "assessment",
+        "section_7_homework": "homework",
+        "section_8_differentiation": "differentiation",
+        "section_9_notes": "notes",
+        "quality_score": 0.3,
+        "needs_improvement": "lesson_flow",
+    }
+    result = route_next(state)
+    assert result.goto == "lesson_flow"
+
+
+def test_route_next_critic_high_quality_goes_to_assembler() -> None:
+    state = {
+        "iteration": 0,
+        "retrieved_chunks": [{"text": "test"}],
+        "section_1_basic": "basic",
+        "section_2_objectives": "objectives",
+        "section_3_prior": "prior",
+        "section_4_materials": "materials",
+        "section_5_flow": "flow",
+        "section_6_assessment": "assessment",
+        "section_7_homework": "homework",
+        "section_8_differentiation": "differentiation",
+        "section_9_notes": "notes",
+        "quality_score": 0.9,
+        "needs_improvement": "",
     }
     result = route_next(state)
     assert result.goto == "assembler"
@@ -157,16 +200,64 @@ def test_route_next_end_when_all_complete() -> None:
         "final_lesson_plan": "plan",
     }
     result = route_next(state)
-    assert result.goto == "END"
+    assert result.goto == END
 
 
 def test_route_next_end_when_max_iterations_reached() -> None:
     state = {"iteration": MAX_ITERATIONS}
     result = route_next(state)
-    assert result.goto == "END"
+    assert result.goto == END
 
 
 def test_route_next_increments_iteration() -> None:
-    state = {"iteration": 5}
+    state = {"iteration": 24}
     result = route_next(state)
-    assert result.update["iteration"] == 6
+    assert result.update["iteration"] == 25
+
+
+def test_route_next_critic_low_quality_resets_score() -> None:
+    """يتحقق من إعادة تعيين quality_score عند إعادة كتابة القسم."""
+    state = {
+        "iteration": 2,
+        "retrieved_chunks": [{"text": "test"}],
+        "section_1_basic": "basic",
+        "section_2_objectives": "objectives",
+        "section_3_prior": "prior",
+        "section_4_materials": "materials",
+        "section_5_flow": "flow",
+        "section_6_assessment": "assessment",
+        "section_7_homework": "homework",
+        "section_8_differentiation": "differentiation",
+        "section_9_notes": "notes",
+        "quality_score": 0.3,
+        "needs_improvement": "basic_info",
+    }
+    result = route_next(state)
+    assert result.goto == "basic_info"
+    assert result.update["quality_score"] is None
+    assert result.update["iteration"] == 3
+    assert result.update["retried_sections"] == ["basic_info"]
+
+
+def test_route_next_final_plan_ends_before_quality_branch() -> None:
+    """وجود الخطة النهائية ينهي الرسم حتى مع بقاء quality_score."""
+    state = {
+        "iteration": 16,
+        "quality_score": 0.9,
+        "needs_improvement": "",
+        "final_lesson_plan": "الخطة النهائية",
+    }
+    result = route_next(state)
+    assert result.goto == END
+
+
+def test_route_next_invalid_section_goes_to_assembler() -> None:
+    """قسم غير معروف من الناقد لا يُستخدم كاسم عقدة."""
+    state = {
+        "iteration": 3,
+        "quality_score": 0.2,
+        "needs_improvement": "not_a_node",
+    }
+    result = route_next(state)
+    assert result.goto == "assembler"
+    assert result.update["quality_score"] is None

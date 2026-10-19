@@ -1,6 +1,7 @@
 """الحالة المشتركة بين عقد رسم المساعد."""
 
-from typing import Any, Literal
+import operator
+from typing import Annotated, Any, Literal
 
 from typing_extensions import TypedDict
 
@@ -12,14 +13,31 @@ Intent = Literal[
 class AgentState(TypedDict, total=False):
     """حالة صغيرة قابلة للتوسع دون ربطها بطريقة النقل."""
 
-    # بلا مجمع operator.add عمدًا: الموجه والجراف الفرعي يطبقان المدخلات
-    # كل على حدة فيضاعف المجمع الرسائل، ولا قارئ إلا messages[-1].
-    messages: list[str]
+    # مجمع الإضافة يحفظ تاريخ المحادثة عبر نقطة التفتيش.
+    messages: Annotated[list[str], operator.add]
     intent: Intent
     response: str
     user_id: str
+    user_role: Literal["teacher", "student"]
     context: dict[str, Any]
     task: str
     role: str
     summary: str
     abuse_count: int
+    sections: dict[str, str]
+    metadata: dict[str, Any]
+    retried_sections: list[str]
+
+
+class AgentOutput(TypedDict, total=False):
+    """حقول الرسم الفرعي التي تعود للرسم الأب دون تكرار الرسائل."""
+
+    intent: Intent
+    response: str
+    task: str
+    role: str
+    summary: str
+    abuse_count: int
+    sections: dict[str, str]
+    metadata: dict[str, Any]
+    retried_sections: list[str]

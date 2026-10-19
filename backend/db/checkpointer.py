@@ -4,13 +4,13 @@ from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from db.connection import open_database_connection
+from db.connection import open_database_pool
 
 
 @asynccontextmanager
 async def open_checkpointer(
     database_url: str,
 ) -> AsyncIterator[AsyncPostgresSaver]:
-    """ربط نقطة تفتيش لانغ غراف باتصال قاعدة البيانات."""
-    async with open_database_connection(database_url) as connection:
-        yield AsyncPostgresSaver(connection)
+    """ربط نقطة تفتيش لانغ غراف بتجمع اتصالات قاعدة البيانات."""
+    async with open_database_pool(database_url) as pool:
+        yield AsyncPostgresSaver(pool)

@@ -52,13 +52,19 @@ def create_classification_node(
         intent: Intent = (
             cast(Intent, result) if result in allowed_intents else "generation"
         )
-        return {"intent": intent}
+        return {
+            "intent": intent,
+            "metadata": {
+                **state.get("metadata", {}),
+                "classified_as": intent,
+                "classifier_node": "classification_node",
+                "classifier_task": "intent_classifier",
+            },
+        }
 
     return classification_node
 
 
-def route_intent(state: dict) -> Intent:
+def route_intent(state: AgentState) -> Intent:
     """اختيار اسم العقدة التالية من التصنيف المحفوظ في الحالة."""
-    # بلا تعليق AgentState عمدًا: لانغ غراف يستنتج مخطط الدخل من التعليق
-    # فيقرأ من نقطة التفتيش بدل دمج المدخلات عند وجودها.
     return cast(Intent, state["intent"])

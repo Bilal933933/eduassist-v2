@@ -28,6 +28,14 @@ def create_teacher_generation_node(
             role="teacher_assistant",
         )
         response = await call_model(prompt, SYSTEM_PROMPT, 0.2)
-        return {"response": response}
+        return {
+            "response": response,
+            "metadata": {
+                **state.get("metadata", {}),
+                "handled_by": "teacher_generation_node",
+                "intent": state.get("intent"),
+                "generator_role": "teacher_assistant",
+            },
+        }
 
     return teacher_generation_node

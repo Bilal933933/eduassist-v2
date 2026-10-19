@@ -8,6 +8,7 @@ from orchestration.lesson_prep.agents import (
     create_assembler_node,
     create_assessment_node,
     create_basic_info_node,
+    create_critic_node,
     create_differentiation_node,
     create_homework_node,
     create_lesson_flow_node,
@@ -42,6 +43,7 @@ def build_lesson_prep_subgraph(
     builder.add_node("homework", create_homework_node(call_model))
     builder.add_node("differentiation", create_differentiation_node(call_model))
     builder.add_node("notes", create_notes_node(call_model))
+    builder.add_node("critic", create_critic_node(call_model))
     builder.add_node("assembler", create_assembler_node(call_model))
 
     builder.add_edge(START, "supervisor")
@@ -57,6 +59,7 @@ def build_lesson_prep_subgraph(
         "homework",
         "differentiation",
         "notes",
+        "critic",
         "assembler",
     ]:
         builder.add_edge(agent, "supervisor")

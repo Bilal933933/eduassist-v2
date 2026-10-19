@@ -15,7 +15,7 @@ from orchestration.nodes.shared import (
 )
 from orchestration.nodes.shared.classification import TEACHER_INTENTS
 from orchestration.nodes.teacher import create_teacher_generation_node, create_lesson_prep_node
-from orchestration.state import AgentState
+from orchestration.state import AgentOutput, AgentState
 from retrieval.service import RetrievalService
 
 
@@ -26,7 +26,7 @@ def build_teacher_graph(
     retrieval_service: RetrievalService | None = None,
 ):
     """تجميع عقد مسار المعلم في رسم فرعي بلا نقاط تفتيش."""
-    builder = StateGraph(AgentState)
+    builder = StateGraph(AgentState, output_schema=AgentOutput)
 
     builder.add_node("classify", create_classification_node(classify_intent, TEACHER_INTENTS))
     builder.add_node("greeting", create_greeting_node(call_model))

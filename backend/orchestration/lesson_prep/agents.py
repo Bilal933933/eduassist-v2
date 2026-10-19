@@ -7,6 +7,7 @@ from orchestration.lesson_prep.prompts import (
     ASSESSMENT_TASK,
     ASSEMBLER_TASK,
     BASIC_INFO_TASK,
+    CRITIC_TASK,
     DIFFERENTIATION_TASK,
     HOMEWORK_TASK,
     LESSON_FLOW_TASK,
@@ -54,7 +55,7 @@ def create_basic_info_node(
             topic=state["topic"],
         )
         result = await call_model(task, "", 0.2)
-        return {"section_1_basic": result}
+        return {"section_1_basic": result, "sections": {"basic_info": result}}
 
     return basic_info_node
 
@@ -68,7 +69,7 @@ def create_objectives_node(
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_2_objectives": result}
+        return {"section_2_objectives": result, "sections": {"objectives": result}}
 
     return objectives_node
 
@@ -82,7 +83,7 @@ def create_prior_knowledge_node(
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_3_prior": result}
+        return {"section_3_prior": result, "sections": {"prior_knowledge": result}}
 
     return prior_knowledge_node
 
@@ -96,7 +97,7 @@ def create_materials_node(
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_4_materials": result}
+        return {"section_4_materials": result, "sections": {"materials": result}}
 
     return materials_node
 
@@ -110,7 +111,7 @@ def create_lesson_flow_node(
             objectives=state.get("section_2_objectives", ""),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_5_flow": result}
+        return {"section_5_flow": result, "sections": {"lesson_flow": result}}
 
     return lesson_flow_node
 
@@ -124,7 +125,7 @@ def create_assessment_node(
             objectives=state.get("section_2_objectives", ""),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_6_assessment": result}
+        return {"section_6_assessment": result, "sections": {"assessment": result}}
 
     return assessment_node
 
@@ -138,7 +139,7 @@ def create_homework_node(
             objectives=state.get("section_2_objectives", ""),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_7_homework": result}
+        return {"section_7_homework": result, "sections": {"homework": result}}
 
     return homework_node
 
@@ -152,7 +153,7 @@ def create_differentiation_node(
             objectives=state.get("section_2_objectives", ""),
         )
         result = await call_model(task, "", 0.3)
-        return {"section_8_differentiation": result}
+        return {"section_8_differentiation": result, "sections": {"differentiation": result}}
 
     return differentiation_node
 
@@ -162,9 +163,50 @@ def create_notes_node(
 ) -> Callable[[LessonPrepState], Awaitable[dict[str, Any]]]:
     async def notes_node(state: LessonPrepState) -> dict[str, Any]:
         result = await call_model(NOTES_TASK, "", 0.2)
-        return {"section_9_notes": result}
+        return {
+            "section_9_notes": result,
+            "sections": {"notes": result},
+        }
 
     return notes_node
+
+
+def create_critic_node(
+    call_model: CallModel,
+) -> Callable[[LessonPrepState], Awaitable[dict[str, Any]]]:
+    async def critic_node(state: LessonPrepState) -> dict[str, Any]:
+        task = CRITIC_TASK.format(
+            topic=state["topic"],
+            sections="\n\n".join(
+                f"## {k}\n{v}" for k, v in state.get("sections", {}).items()
+            ),
+            objectives=state.get("section_2_objectives", ""),
+        )
+        result = await call_model(task, "", 0.3)
+
+        # erwarج النموذج بإرجاع JSON بسيط: {"score": 0.0-1.0, "section": "القسم الذي يحتاج تحسين" أو null}
+        import json
+
+        try:
+            parsed = json.loads(result)
+            score = float(parsed.get("score", 0.5))
+            section = parsed.get("section")
+        except (json.JSONDecodeError, ValueError, TypeError):
+            score = 0.5
+            section = None
+
+        return {
+            "quality_score": score,
+            "needs_improvement": section or "",
+            "sections": {"critic": result},
+            "metadata": {
+                "critic_node": "critic_node",
+                "quality_score": score,
+                "section_needs_improvement": section or "",
+            },
+        }
+
+    return critic_node
 
 
 def create_assembler_node(
@@ -184,6 +226,12 @@ def create_assembler_node(
             section_9=state.get("section_9_notes", ""),
         )
         result = await call_model(task, "", 0.2)
-        return {"final_lesson_plan": result}
+        return {
+            "final_lesson_plan": result,
+            "metadata": {
+                "assembler_node": "assembler_node",
+                "final_plan_generated": True,
+            },
+        }
 
     return assembler_node

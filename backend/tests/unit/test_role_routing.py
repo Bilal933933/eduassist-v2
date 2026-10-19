@@ -23,9 +23,9 @@ def test_route_role_sends_teacher_with_brief_to_teacher() -> None:
 
 
 def test_route_role_falls_back_to_student_without_brief() -> None:
-    """المعلم بلا بروفايل والطالب والقيم الغريبة ← مسار الطالب الآمن."""
+    """المعلم يذهب لمسار المعلم بغض النظر عن البروفايل؛ غير المعلم لمسار الطالب."""
     assert route_role({"messages": ["x"], "user_role": "teacher", "context": {}}) == (
-        "student"
+        "teacher"
     )
     assert route_role({"messages": ["x"], "user_role": "student"}) == "student"
     assert route_role({"messages": ["x"]}) == "student"
@@ -80,8 +80,8 @@ def test_teacher_graph_injects_brief_into_generation() -> None:
     assert received[0]["role"] == "teacher_assistant"
 
 
-def test_teacher_without_brief_uses_student_path() -> None:
-    """معلم بلا بروفايل يسلك مسار الطالب الآمن."""
+def test_teacher_without_brief_uses_teacher_path() -> None:
+    """المعلم بلا بروفايل لا يزال يسلك مسار المعلم."""
     received: list[dict] = []
 
     async def fake_generate(
@@ -89,7 +89,7 @@ def test_teacher_without_brief_uses_student_path() -> None:
     ) -> str:
         _ = system_prompt, temperature
         received.append(json.loads(message))
-        return "رد الطالب"
+        return "رد المعلم"
 
     async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
         _ = prompt, choices
@@ -107,12 +107,12 @@ def test_teacher_without_brief_uses_student_path() -> None:
                 "user_role": "teacher",
                 "context": {},
             },
-            checkpoint_config("teacher-2", "fallback-conv"),
+            checkpoint_config("teacher-2", "teacher-conv"),
         )
     )
 
-    assert result["response"] == "رد الطالب"
-    assert received[0]["role"] == "educational_assistant"
+    assert result["response"] == "رد المعلم"
+    assert received[0]["role"] == "teacher_assistant"
 
 
 def test_teacher_profile_repository_get_and_upsert() -> None:

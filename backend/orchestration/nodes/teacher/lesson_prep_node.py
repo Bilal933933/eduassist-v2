@@ -24,9 +24,28 @@ def create_lesson_prep_node(
         input_state = {
             "subject": context.get("subject", ""),
             "grade": context.get("grade", ""),
-            "topic": context.get("topic", state["messages"][-1]),
+            "topic": context.get("topic") or state["messages"][-1],
+            "sections": state.get("sections", {}),
+            "retried_sections": state.get("retried_sections", []),
         }
         result = await subgraph.ainvoke(input_state)
-        return {"response": result.get("final_lesson_plan", "")}
+        
+        subgraph_metadata = result.get("metadata", {})
+
+        return {
+            "response": result.get("final_lesson_plan", ""),
+            "sections": result.get("sections", {}),
+            "retried_sections": result.get("retried_sections", []),
+            "metadata": {
+                **state.get("metadata", {}),
+                "handled_by": "lesson_prep_node",
+                "intent": state.get("intent"),
+                "subgraph_nodes_executed": subgraph_metadata.get(
+                    "nodes_executed", []
+                ),
+                "retrieval_used": bool(result.get("retrieved_chunks")),
+                "final_plan_generated": bool(result.get("final_lesson_plan")),
+            },
+        }
 
     return lesson_prep_node

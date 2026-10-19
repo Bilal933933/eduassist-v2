@@ -190,6 +190,14 @@ def test_run_chat_without_response_emits_failed(monkeypatch) -> None:
     env.messages.add.assert_not_awaited()
 
 
+def test_run_chat_with_empty_response_emits_failed(monkeypatch) -> None:
+    """الرد الفارغ أو المسافات يُعد فشلًا ولا يُحفظ."""
+    socket = FakeWebSocket()
+    _, env = _run(monkeypatch, _FakeGraph(response="   "), socket)
+    assert [e["type"] for e in socket.events] == ["chat.started", "chat.failed"]
+    env.messages.add.assert_not_awaited()
+
+
 def test_run_chat_reply_save_failure_emits_failed(monkeypatch) -> None:
     """فشل حفظ الرد يُبلَّغ كفشل بدل إعلان اكتمال كاذب."""
     socket = FakeWebSocket()

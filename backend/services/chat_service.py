@@ -121,7 +121,7 @@ async def run_chat(
     try:
         await chat_server.send_started(owner_key, conversation_key)
         response = await _collect_response(graph, accepted)
-        if response is None:
+        if not response or not response.strip():
             logger.error("انتهى الرسم دون رد للمحادثة %s", conversation_key)
             await _send_failed(owner_key, conversation_key)
             return

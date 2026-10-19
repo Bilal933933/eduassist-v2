@@ -22,14 +22,11 @@ def checkpoint_config(user_id: str, conversation_id: str) -> dict:
     return {"configurable": {"thread_id": scoped_thread_id}}
 
 
-def route_role(state: dict) -> RoleRoute:
-    """توجيه المعلم ذي البروفايل لمساره، وغيره لمسار الطالب الآمن."""
-    # بلا تعليق AgentState عمدًا: لانغ غراف يستنتج مخطط الدخل من التعليق
-    # فيقرأ من نقطة التفتيش الفارغة أول مرة بدل دمج المدخلات.
+def route_role(state: AgentState) -> RoleRoute:
+    """توجيه المعلم لمساره، وغيره لمسار الطالب الآمن."""
     if state.get("user_role") != "teacher":
         return "student"
-    brief = state.get("context", {}).get("teacher_brief", "")
-    return "teacher" if brief else "student"
+    return "teacher"
 
 
 def build_graph(

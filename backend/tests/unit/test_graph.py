@@ -68,7 +68,10 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
         classify_node = create_classification_node(fake_classify, STUDENT_INTENTS)
         state = {"messages": [message], "user_id": "user-1"}
         snapshot = {"messages": [message], "user_id": "user-1"}
-        assert asyncio.run(classify_node(state)) == {"intent": expected_intent}
+        result = asyncio.run(classify_node(state))
+        assert result["intent"] == expected_intent
+        assert result["metadata"]["classified_as"] == expected_intent
+        assert result["metadata"]["classifier_node"] == "classification_node"
         assert state == snapshot
 
 
@@ -82,7 +85,8 @@ def test_classification_node_uses_generation_for_invalid_result() -> None:
 
     result = asyncio.run(classify_node({"messages": ["رسالة"]}))
 
-    assert result == {"intent": "generation"}
+    assert result["intent"] == "generation"
+    assert result["metadata"]["classified_as"] == "generation"
 
 
 def test_quick_reply_node_returns_specific_response() -> None:
@@ -232,3 +236,36 @@ def test_checkpoint_is_isolated_by_user_and_conversation() -> None:
 
     result = asyncio.run(run_isolated_calls())
     assert result["messages"] == ["الثانية"]
+
+
+def test_checkpoint_accumulates_messages_without_subgraph_duplication() -> None:
+    """نقطة التفتيش تجمع الرسائل دون أن يضيفها الرسم الفرعي مرة ثانية."""
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        return message
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "generation"
+
+    async def scenario() -> dict:
+        assistant_graph = build_graph(
+            call_model=fake_generate,
+            classify_intent=fake_classify,
+        )
+        config = checkpoint_config("user-1", "accumulating")
+        await assistant_graph.ainvoke(
+            {"messages": ["الأولى"], "user_id": "user-1", "user_role": "student"},
+            config,
+        )
+        return await assistant_graph.ainvoke(
+            {"messages": ["الثانية"], "user_id": "user-1", "user_role": "student"},
+            config,
+        )
+
+    result = asyncio.run(scenario())
+    assert result["messages"] == ["الأولى", "الثانية"]
+    assert result["user_role"] == "student"
