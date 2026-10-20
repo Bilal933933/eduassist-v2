@@ -68,7 +68,6 @@ def test_gemini_retries_transient_timeout_then_succeeds(monkeypatch) -> None:
     generate_content = AsyncMock(
         side_effect=[
             TimeoutError("t1"),
-            TimeoutError("t2"),
             SimpleNamespace(text="رد بعد محاولتين"),
         ]
     )
@@ -77,26 +76,101 @@ def test_gemini_retries_transient_timeout_then_succeeds(monkeypatch) -> None:
     monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
     monkeypatch.setattr(gemini_module.asyncio, "sleep", AsyncMock())
 
-    client = GeminiClient("test-key", "test-model")
+    client = GeminiClient("test-key", "test-model", "test-model")
     result = asyncio.run(client.generate("اشرح النحو", "موجه اختباري", 0.1))
 
     assert result == "رد بعد محاولتين"
-    assert generate_content.await_count == 3
+    assert generate_content.await_count == 2
 
 
 def test_gemini_gives_up_after_max_attempts(monkeypatch) -> None:
-    """يستسلم المحول بعد ثلاث محاولات فاشلة ويمرر الخطأ."""
+    """يستسلم المحول بعد المحاولتين المسموحتين ويمرر الخطأ."""
     generate_content = AsyncMock(side_effect=TimeoutError("down"))
     fake_client = Mock()
     fake_client.aio.models.generate_content = generate_content
     monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
     monkeypatch.setattr(gemini_module.asyncio, "sleep", AsyncMock())
 
-    client = GeminiClient("test-key", "test-model")
+    client = GeminiClient("test-key", "test-model", "test-model")
     with pytest.raises(TimeoutError):
         asyncio.run(client.generate("رسالة", "موجه", 0.1))
 
-    assert generate_content.await_count == 3
+    assert generate_content.await_count == 2
+
+
+def test_gemini_switches_to_fallback_without_retrying_primary(monkeypatch) -> None:
+    """عطل يستدعي البديل (503/429) يحوّل النداء فورًا بلا محاولات إضافية."""
+    calls: list[str] = []
+
+    async def fake_generate(*, model: str, **kwargs) -> SimpleNamespace:
+        _ = kwargs
+        calls.append(model)
+        if model == "primary-model":
+            raise RuntimeError("busy")
+        return SimpleNamespace(text="رد بديل")
+
+    fake_client = Mock()
+    fake_client.aio.models.generate_content = fake_generate
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+    monkeypatch.setattr(gemini_module, "_should_fallback", lambda error: True)
+    monkeypatch.setattr(gemini_module.asyncio, "sleep", AsyncMock())
+
+    client = GeminiClient("test-key", "primary-model", "fallback-model")
+    result = asyncio.run(client.generate("رسالة", "موجه", 0.1))
+
+    assert result == "رد بديل"
+    assert calls == ["primary-model", "fallback-model"]
+
+
+def test_gemini_retries_primary_timeout_without_slow_fallback(monkeypatch) -> None:
+    """المهلة تعاد على الأساسي ولا تحوّل لبديل أبطأ يضاعف الانتظار."""
+    calls: list[str] = []
+
+    async def fake_generate(*, model: str, **kwargs) -> SimpleNamespace:
+        _ = kwargs
+        calls.append(model)
+        if model == "primary-model":
+            raise TimeoutError("hang")
+        return SimpleNamespace(text="رد بديل")
+
+    fake_client = Mock()
+    fake_client.aio.models.generate_content = fake_generate
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+    monkeypatch.setattr(gemini_module.asyncio, "sleep", AsyncMock())
+
+    client = GeminiClient("test-key", "primary-model", "fallback-model")
+    with pytest.raises(TimeoutError):
+        asyncio.run(client.generate("رسالة", "موجه", 0.1))
+
+    assert calls == ["primary-model", "primary-model"]
+
+
+def test_gemini_skips_primary_after_repeated_failures(monkeypatch) -> None:
+    """بعد إخفاقين متتاليين يتخطى القاطع الأساسي ويستدعي البديل مباشرة."""
+    calls: list[str] = []
+
+    async def fake_generate(*, model: str, **kwargs) -> SimpleNamespace:
+        _ = kwargs
+        calls.append(model)
+        if model == "primary-model":
+            raise RuntimeError("busy")
+        return SimpleNamespace(text="رد بديل")
+
+    fake_client = Mock()
+    fake_client.aio.models.generate_content = fake_generate
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+    monkeypatch.setattr(gemini_module, "_should_fallback", lambda error: True)
+    monkeypatch.setattr(gemini_module.asyncio, "sleep", AsyncMock())
+
+    client = GeminiClient("test-key", "primary-model", "fallback-model")
+    for _ in range(2):
+        asyncio.run(client.generate("رسالة", "موجه", 0.1))
+
+    calls.clear()
+    result = asyncio.run(client.generate("رسالة", "موجه", 0.1))
+
+    assert result == "رد بديل"
+    assert calls == ["fallback-model"]
 
 
 def test_gemini_does_not_retry_unexpected_errors(monkeypatch) -> None:

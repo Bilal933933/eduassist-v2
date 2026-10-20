@@ -1,11 +1,14 @@
 """تصنيف رسائل المستخدم بواسطة نموذج اللغة وتوجيهها."""
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import cast
 
-from orchestration.state import AgentState, Intent, append_node
-from prompts.tasks import INTENT_CLASSIFICATION_TASK, INTENT_HINT
+from orchestration.state import AgentState, Intent, append_node, current_user_role
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
+
+logger = logging.getLogger("eduassist.classification")
 
 TEACHER_INTENTS: tuple[Intent, ...] = (
     "greeting",
@@ -39,16 +42,24 @@ def create_classification_node(
         history = context.get(
             "classifier_view", {"history": context.get("history", [])}
         )["history"]
+        spec = get_prompt("classification", current_user_role(state))
         prompt = build_prompt(
             message=state["messages"][-1],
             context={
                 "allowed_intents": list(allowed_intents),
                 "history": history,
             },
-            task=f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}",
-            role="intent_classifier",
+            task=spec.task,
+            role=spec.role,
         )
-        result = await classify_intent(prompt, allowed_intents)
+        classifier_failed = False
+        try:
+            result = await classify_intent(prompt, allowed_intents)
+        except Exception:
+            # فشل التصنيف لا يجوز أن يمنع الرد: التوليد هو المسار الآمن.
+            logger.exception("فشل تصنيف النية، تحويل الرسالة إلى مسار التوليد.")
+            result = "generation"
+            classifier_failed = True
         intent: Intent = (
             cast(Intent, result) if result in allowed_intents else "generation"
         )
@@ -60,6 +71,7 @@ def create_classification_node(
                 intent=intent,
                 classified_by="classification_node",
                 classifier_task="intent_classifier",
+                classifier_failed=classifier_failed,
             ),
         }
 

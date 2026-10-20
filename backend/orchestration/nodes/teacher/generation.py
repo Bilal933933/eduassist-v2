@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 
 from orchestration.state import AgentState, append_node
-from prompts.system import SYSTEM_PROMPT
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
 
@@ -21,13 +21,15 @@ def create_teacher_generation_node(
             view["teacher_brief"] = brief
         if state.get("summary"):
             view["summary"] = state["summary"]
+        # هذه العقدة مركّبة في رسم المعلم فقط، فالدور ثابت هنا.
+        spec = get_prompt("generation", "teacher")
         prompt = build_prompt(
             message=state["messages"][-1],
             context=view,
-            task=state.get("task", "answer"),
-            role="teacher_assistant",
+            task=spec.task or state.get("task", "answer"),
+            role=spec.role,
         )
-        response = await call_model(prompt, SYSTEM_PROMPT, 0.2)
+        response = await call_model(prompt, spec.system, spec.temperature)
         return {
             "response": response,
             "metadata": append_node(
@@ -35,7 +37,7 @@ def create_teacher_generation_node(
                 "generation",
                 handled_by="teacher_generation_node",
                 response_source="llm",
-                generator_role="teacher_assistant",
+                generator_role=spec.role,
                 recalled=bool(state.get("summary")),
             ),
         }

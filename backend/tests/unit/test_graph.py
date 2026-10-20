@@ -12,6 +12,7 @@ from orchestration.nodes import (
 )
 from prompts.tasks import (
     GENERAL_RESPONSE_TASK,
+    GENERATION_TASK,
     GREETING_RESPONSE_TASK,
     INTENT_CLASSIFICATION_TASK,
     RECALL_TASK,
@@ -77,6 +78,20 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
         assert state == snapshot
 
 
+def test_classification_node_falls_back_to_generation_on_failure() -> None:
+    """فشل المصنف لا يمنع الرد ويحوّل الرسالة لمسار التوليد الآمن."""
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        raise TimeoutError("down")
+
+    classify_node = create_classification_node(fake_classify, STUDENT_INTENTS)
+
+    result = asyncio.run(classify_node({"messages": ["رسالة"]}))
+
+    assert result["intent"] == "generation"
+    assert result["metadata"]["classifier_failed"] is True
+
+
 def test_classification_node_uses_generation_for_invalid_result() -> None:
     """توجه العقدة النتيجة غير المعروفة إلى مسار التوليد الآمن."""
     async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
@@ -124,8 +139,17 @@ def test_graph_routes_greeting_quick_reply_and_generation_message() -> None:
         (
             "اشرح النحو",
             "generation",
-            'رد النموذج: {"message":"اشرح النحو","context":{},'
-            '"task":"answer","role":"educational_assistant"}',
+            "رد النموذج: "
+            + json.dumps(
+                {
+                    "message": "اشرح النحو",
+                    "context": {},
+                    "task": GENERATION_TASK,
+                    "role": "educational_assistant",
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
         ),
         (
             "كيف حالك؟",

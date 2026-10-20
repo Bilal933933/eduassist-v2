@@ -1,10 +1,6 @@
-"""موجهات نماذج اللغة الكبيرة."""
+"""موجهات نماذج اللغة الكبيرة: سجل واحد يحل البرومبت بالعقدة والدور."""
 
-from prompts.system import SYSTEM_PROMPT
-from prompts.tasks import GREETING_RESPONSE_TASK, INTENT_CLASSIFICATION_TASK
+from prompts.registry import PromptSpec, get_prompt
+from prompts.roles import UserRole
 
-__all__ = [
-    "GREETING_RESPONSE_TASK",
-    "INTENT_CLASSIFICATION_TASK",
-    "SYSTEM_PROMPT",
-]
+__all__ = ["PromptSpec", "UserRole", "get_prompt"]

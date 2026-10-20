@@ -2,9 +2,8 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState, append_node
-from prompts.system import ABUSE_SYSTEM_PROMPT
-from prompts.tasks import ABUSE_ESCALATION_TASK, ABUSE_RESPONSE_TASK
+from orchestration.state import AgentState, append_node, current_user_role
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
 
@@ -16,13 +15,14 @@ def create_abuse_node(
     async def abuse_node(state: AgentState) -> dict:
         """تجهيز مهمة الإساءة مع التصعيد اللطيف وإعادة رد النموذج."""
         count = int(state.get("abuse_count", 0)) + 1
+        spec = get_prompt("abuse", current_user_role(state))
         prompt = build_prompt(
             message=state["messages"][-1],
             context={"occurrence": count},
-            task=f"{ABUSE_RESPONSE_TASK}\n{ABUSE_ESCALATION_TASK}",
-            role="educational_assistant",
+            task=spec.task,
+            role=spec.role,
         )
-        response = await call_model(prompt, ABUSE_SYSTEM_PROMPT, 0.2)
+        response = await call_model(prompt, spec.system, spec.temperature)
         return {
             "response": response,
             "abuse_count": count,
@@ -31,7 +31,7 @@ def create_abuse_node(
                 "abuse",
                 handled_by="abuse_node",
                 response_source="llm",
-                generator_role="educational_assistant",
+                generator_role=spec.role,
                 abuse_count=count,
             ),
         }

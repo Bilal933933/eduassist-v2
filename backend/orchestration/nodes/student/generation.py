@@ -2,8 +2,8 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState, append_node, user_is_teacher
-from prompts.system import SYSTEM_PROMPT
+from orchestration.state import AgentState, append_node, current_user_role
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
 
@@ -18,16 +18,14 @@ def create_generation_node(
         view = dict(context.get("generator_view", context))
         if state.get("summary"):
             view["summary"] = state["summary"]
-        generator_role = (
-            "teacher_assistant" if user_is_teacher(state) else "educational_assistant"
-        )
+        spec = get_prompt("generation", current_user_role(state))
         prompt = build_prompt(
             message=state["messages"][-1],
             context=view,
-            task=state.get("task", "answer"),
-            role=generator_role,
+            task=spec.task or state.get("task", "answer"),
+            role=spec.role,
         )
-        response = await call_model(prompt, SYSTEM_PROMPT, 0.2)
+        response = await call_model(prompt, spec.system, spec.temperature)
         return {
             "response": response,
             "metadata": append_node(
@@ -35,7 +33,7 @@ def create_generation_node(
                 "generation",
                 handled_by="student_generation_node",
                 response_source="llm",
-                generator_role=generator_role,
+                generator_role=spec.role,
                 recalled=bool(state.get("summary")),
             ),
         }

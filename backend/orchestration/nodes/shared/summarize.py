@@ -2,9 +2,8 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState, append_node
-from prompts.system import SYSTEM_PROMPT
-from prompts.tasks import RECALL_TASK
+from orchestration.state import AgentState, append_node, current_user_role
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
 
@@ -17,13 +16,14 @@ def create_summarize_node(
         """لخص السوابق ثم سلم للمولد عبر summary في الحالة."""
         context = state.get("context", {})
         view = context.get("generator_view", {"history": context.get("history", [])})
+        spec = get_prompt("summarize", current_user_role(state))
         prompt = build_prompt(
             message=state["messages"][-1],
             context=view,
-            task=RECALL_TASK,
-            role="educational_assistant",
+            task=spec.task,
+            role=spec.role,
         )
-        summary = await call_model(prompt, SYSTEM_PROMPT, 0.2)
+        summary = await call_model(prompt, spec.system, spec.temperature)
         return {
             "summary": summary,
             "metadata": append_node(
@@ -31,7 +31,7 @@ def create_summarize_node(
                 "summarize",
                 handled_by="summarize_node",
                 response_source="llm",
-                generator_role="educational_assistant",
+                generator_role=spec.role,
             ),
         }
 

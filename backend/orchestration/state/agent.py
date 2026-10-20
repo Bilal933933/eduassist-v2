@@ -60,3 +60,8 @@ class AgentOutput(TypedDict, total=False):
 def user_is_teacher(state: AgentState) -> bool:
     """هل صاحب المحادثة معلم؟ المصدر الوحيد للدور هو ``user_role``."""
     return state.get("user_role") == "teacher"
+
+
+def current_user_role(state: AgentState) -> Literal["teacher", "student"]:
+    """دور صاحب المحادثة، والافتراضي طالب عند غياب الدور."""
+    return "teacher" if user_is_teacher(state) else "student"

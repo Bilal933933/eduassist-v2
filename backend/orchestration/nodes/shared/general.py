@@ -2,9 +2,8 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState, append_node, user_is_teacher
-from prompts.system import GENERAL_SYSTEM_PROMPT
-from prompts.tasks import GENERAL_RESPONSE_TASK, TEACHER_GENERAL_RESPONSE_TASK
+from orchestration.state import AgentState, append_node, current_user_role
+from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
 
@@ -15,16 +14,14 @@ def create_general_node(
 
     async def general_node(state: AgentState) -> dict:
         """تجهيز مهمة الدردشة الحرة وإعادة الرد كتحديث للحالة."""
-        is_teacher = user_is_teacher(state)
-        task = TEACHER_GENERAL_RESPONSE_TASK if is_teacher else GENERAL_RESPONSE_TASK
-        generator_role = "teacher_assistant" if is_teacher else "general_assistant"
+        spec = get_prompt("general", current_user_role(state))
         prompt = build_prompt(
             message=state["messages"][-1],
             context=state.get("context", {}),
-            task=task,
-            role=generator_role,
+            task=spec.task,
+            role=spec.role,
         )
-        response = await call_model(prompt, GENERAL_SYSTEM_PROMPT, 0.7)
+        response = await call_model(prompt, spec.system, spec.temperature)
         return {
             "response": response,
             "metadata": append_node(
@@ -32,7 +29,7 @@ def create_general_node(
                 "general",
                 handled_by="general_node",
                 response_source="llm",
-                generator_role=generator_role,
+                generator_role=spec.role,
             ),
         }
 
