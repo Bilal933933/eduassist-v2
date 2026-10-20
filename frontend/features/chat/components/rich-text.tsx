@@ -12,7 +12,7 @@ type Block =
 
 const HEADING_PATTERN = /^(#{1,4})\s+(.*)$/;
 const UNORDERED_PATTERN = /^\s*[-*•]\s+(.*)$/;
-const ORDERED_PATTERN = /^\s*\d+[.)]\s+(.*)$/;
+const ORDERED_PATTERN = /^\s*[\d٠-٩]+[.)]\s+(.*)$/;
 const QUOTE_PATTERN = /^\s*>\s?(.*)$/;
 const FENCE_PATTERN = /^\s*```/;
 const INLINE_PATTERN = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`)/g;

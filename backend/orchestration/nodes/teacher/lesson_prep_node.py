@@ -30,7 +30,7 @@ def create_lesson_prep_node(
         }
         result = await subgraph.ainvoke(
             input_state,
-            config={"recursion_limit": 80},
+            config={"recursion_limit": 120},
         )
 
         subgraph_metadata = result.get("metadata", {})

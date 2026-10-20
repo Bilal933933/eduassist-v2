@@ -10,12 +10,12 @@ from orchestration.lesson_prep.prompts import (
     BASIC_INFO_TASK,
     CRITIC_TASK,
     DIFFERENTIATION_TASK,
+    FORMAT_RULE,
     HOMEWORK_TASK,
     LESSON_FLOW_TASK,
     MATERIALS_TASK,
     NOTES_TASK,
     OBJECTIVES_TASK,
-    PLAIN_TEXT_RULE,
     PRIOR_KNOWLEDGE_TASK,
 )
 from orchestration.lesson_prep.state import LessonPrepState
@@ -88,7 +88,7 @@ def create_basic_info_node(
             subject=state.get("subject") or "غير محدد",
             grade=state.get("grade") or "غير محدد",
             topic=state["topic"],
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.2)
         return _with_node(
@@ -107,7 +107,7 @@ def create_objectives_node(
         task = OBJECTIVES_TASK.format(
             topic=state["topic"],
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -126,7 +126,7 @@ def create_prior_knowledge_node(
         task = PRIOR_KNOWLEDGE_TASK.format(
             topic=state["topic"],
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -148,7 +148,7 @@ def create_materials_node(
         task = MATERIALS_TASK.format(
             topic=state["topic"],
             chunks=_format_chunks(state.get("retrieved_chunks", [])),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -167,7 +167,7 @@ def create_lesson_flow_node(
         task = LESSON_FLOW_TASK.format(
             topic=state["topic"],
             objectives=state.get("section_2_objectives", ""),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -186,7 +186,7 @@ def create_assessment_node(
         task = ASSESSMENT_TASK.format(
             topic=state["topic"],
             objectives=state.get("section_2_objectives", ""),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -205,7 +205,7 @@ def create_homework_node(
         task = HOMEWORK_TASK.format(
             topic=state["topic"],
             objectives=state.get("section_2_objectives", ""),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -224,7 +224,7 @@ def create_differentiation_node(
         task = DIFFERENTIATION_TASK.format(
             topic=state["topic"],
             objectives=state.get("section_2_objectives", ""),
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.3)
         return _with_node(
@@ -245,7 +245,7 @@ def create_notes_node(
     async def notes_node(state: LessonPrepState) -> dict[str, Any]:
         task = NOTES_TASK.format(
             topic=state["topic"],
-            rule=PLAIN_TEXT_RULE,
+            rule=FORMAT_RULE,
         )
         result = await call_model(task, "", 0.2)
         return _with_node(
