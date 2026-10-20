@@ -61,22 +61,22 @@ export function ConversationList({
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className={`flex h-full w-72 flex-col bg-white ${className ?? ""}`}>
+    <div className={`flex h-full w-72 flex-col bg-slate-50/50 ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2 p-4">
         <div className="min-w-0">
           <p className="truncate font-bold text-slate-900">المساعد النحوي</p>
           <p className="truncate text-xs text-slate-500">مرحبًا، {userName}</p>
         </div>
-        <Button size="sm" onClick={handleNew} disabled={createConversation.isPending}>
+        <Button size="sm" onClick={handleNew} disabled={createConversation.isPending} className="rounded-xl shadow-none">
           <Plus className="size-4" />
           جديد
         </Button>
       </div>
-      <Separator />
+      <div className="h-px bg-slate-200/50" />
       <ScrollArea className="flex-1 px-2 py-2">
         {list.isPending &&
           Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="mb-2 h-14 w-full" />
+            <Skeleton key={index} className="mb-2 h-14 w-full rounded-2xl" />
           ))}
         {list.isError && (
           <div className="p-4 text-center">
@@ -84,7 +84,7 @@ export function ConversationList({
             <Button
               variant="outline"
               size="sm"
-              className="mt-3"
+              className="mt-3 rounded-xl"
               onClick={() => list.refetch()}
             >
               إعادة المحاولة
@@ -93,7 +93,7 @@ export function ConversationList({
         )}
         {!list.isPending && !list.isError && items.length === 0 && (
           <div className="px-4 py-10 text-center">
-            <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
               <Sparkles className="size-5" />
             </div>
             <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -102,7 +102,7 @@ export function ConversationList({
             <p className="mt-1 text-xs leading-5 text-slate-500">
               ابدأ محادثة جديدة لتسأل عن أي قاعدة نحوية.
             </p>
-            <Button size="sm" className="mt-4" onClick={handleNew}>
+            <Button size="sm" className="mt-4 rounded-xl" onClick={handleNew}>
               <Plus className="size-4" />
               محادثة جديدة
             </Button>
@@ -116,10 +116,10 @@ export function ConversationList({
               href={`/chat/${conversation.id}`}
               onClick={onSelect}
               aria-current={active ? "page" : undefined}
-              className={`mb-1 block rounded-xl px-3 py-2.5 text-sm transition-colors ${
+              className={`mb-1 block rounded-2xl px-3 py-2.5 text-sm transition-all ${
                 active
-                  ? "bg-emerald-50 font-semibold text-emerald-900"
-                  : "text-slate-700 hover:bg-slate-100"
+                  ? "bg-emerald-50/80 font-semibold text-emerald-900 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-200/50 hover:text-slate-900"
               }`}
             >
               <span className="flex items-center justify-between gap-2">
@@ -127,7 +127,7 @@ export function ConversationList({
                   {conversation.title ?? "محادثة بلا عنوان"}
                 </span>
                 {conversation.status !== "active" && (
-                  <Badge variant="secondary">مؤرشفة</Badge>
+                  <Badge variant="secondary" className="text-[10px]">مؤرشفة</Badge>
                 )}
               </span>
               <span className="mt-1 block text-xs tabular-nums text-slate-400">
@@ -140,7 +140,7 @@ export function ConversationList({
           <Button
             variant="ghost"
             size="sm"
-            className="mt-2 w-full"
+            className="mt-2 w-full rounded-xl"
             onClick={() => list.fetchNextPage()}
             disabled={list.isFetchingNextPage}
           >
@@ -148,25 +148,26 @@ export function ConversationList({
           </Button>
         )}
       </ScrollArea>
-      <Separator />
-      <div className="space-y-2 p-4">
+      <div className="h-px bg-slate-200/50" />
+      <div className="space-y-2 p-3">
         {userRole === "teacher" && (
           <Link
             href="/profile"
             onClick={onSelect}
-            className={buttonVariants({ variant: "outline", className: "w-full" })}
+            className={buttonVariants({ variant: "ghost", size: "sm", className: "w-full justify-start rounded-xl text-slate-600 hover:bg-slate-200/50" })}
           >
-            <UserCog className="size-4" />
+            <UserCog className="size-4 ml-2" />
             بروفايل المعلم
           </Link>
         )}
         <Button
-          variant="outline"
-          className="w-full"
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600"
           onClick={handleLogout}
           disabled={logout.isPending}
         >
-          <LogOut className="size-4" />
+          <LogOut className="size-4 ml-2" />
           تسجيل الخروج
         </Button>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Paperclip, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -52,32 +52,61 @@ export function MessageInput({
   }
 
   return (
-    <form className="border-t bg-white p-3 sm:p-4" onSubmit={handleSubmit}>
-      <div className="mx-auto flex max-w-4xl items-end gap-2">
-        <div className="relative flex-1">
-          <Textarea
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isBlocked}
-            rows={1}
-            aria-label="نص الرسالة"
-            className="max-h-40 min-h-11 resize-none border-slate-200 bg-slate-50 py-3 leading-6 focus-visible:bg-white"
-          />
+    <form className="p-4 pb-8 sm:px-6" onSubmit={handleSubmit}>
+      <div className="mx-auto flex max-w-3xl flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+        <Textarea
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={isBlocked}
+          rows={2}
+          aria-label="نص الرسالة"
+          className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent px-4 pt-3.5 pb-2 text-slate-800 shadow-none focus-visible:ring-0"
+        />
+        <div className="flex items-center justify-between px-3 pb-3 pt-1">
+          <div className="flex items-center gap-1 text-slate-400">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              disabled={isBlocked}
+              aria-label="إرفاق ملف"
+              className="size-9 rounded-full hover:bg-slate-100 hover:text-slate-600"
+              onClick={() => {}}
+            >
+              <Paperclip className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              disabled={isBlocked}
+              aria-label="تسجيل صوتي"
+              className="size-9 rounded-full hover:bg-slate-100 hover:text-slate-600"
+              onClick={() => {}}
+            >
+              <Mic className="size-4" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-[11px] text-slate-400 sm:inline">
+              {disabledReason ?? "Enter للإرسال"}
+            </span>
+            <Button
+              type="submit"
+              size="icon"
+              disabled={isBlocked || !value.trim()}
+              aria-label="إرسال الرسالة"
+              className="size-9 rounded-full bg-emerald-700 text-white transition-all hover:bg-emerald-800 disabled:opacity-40"
+            >
+              <Send className="size-4 rotate-180" />
+            </Button>
+          </div>
         </div>
-        <Button
-          type="submit"
-          size="icon"
-          disabled={isBlocked || !value.trim()}
-          aria-label="إرسال الرسالة"
-          className="size-11 shrink-0 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800"
-        >
-          <Send className="size-4 rotate-180" />
-        </Button>
       </div>
-      <p className="mx-auto mt-1.5 max-w-4xl px-1 text-[11px] text-slate-400">
-        {disabledReason ?? "Enter للإرسال · Shift+Enter لسطر جديد"}
+      <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-slate-400 sm:hidden">
+        {disabledReason ?? "Enter للإرسال"}
       </p>
     </form>
   );
