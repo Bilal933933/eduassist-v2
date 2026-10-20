@@ -15,7 +15,7 @@ export default function Home() {
   }, [me.data, router]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6" dir="rtl">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-950 p-6" dir="rtl">
       {me.isPending ? (
         <Skeleton className="h-64 w-full max-w-xl" />
       ) : (

@@ -64,4 +64,6 @@ def build_lesson_prep_subgraph(
     ]:
         builder.add_edge(agent, "supervisor")
 
-    return builder.compile()
+    # الرسم الفرعي لا يحتاج استمرارية: يبدأ كل تحضير من جديد، فلا تُكتب
+    # لقطة لكل خطوة فيه (كانت وحدها تستهلك معظم مساحة جداول الحافظ).
+    return builder.compile(checkpointer=False)

@@ -3,12 +3,9 @@
 import asyncio
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from db.repositories.knowledge_repository import KnowledgeRepository
 from db.session import open_session_factory
 from retrieval.service import RetrievalService
-from retrieval.tools import CurriculumRetrievalTools
 
 _DIM = 768
 
@@ -17,15 +14,16 @@ def _vec(values: list[float]) -> list[float]:
     return values + [0.0] * (_DIM - len(values))
 
 
-def _fake_embed(text: str) -> list[float]:
+async def _fake_embed(text: str) -> list[float]:
+    _ = text
     return _vec([1.0, 0.0, 0.0])
 
 
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-def _make_service(repo, tools) -> RetrievalService:
-    return RetrievalService(repo, tools, _fake_embed, score_threshold=0.65)
+def _make_service(factory) -> RetrievalService:
+    return RetrievalService(factory, _fake_embed, score_threshold=0.65)
 
 
 def test_search_internal() -> None:
@@ -40,8 +38,7 @@ def test_search_internal() -> None:
                 await session.execute(text("DELETE FROM knowledge_chunks;"))
                 await session.commit()
                 repo = KnowledgeRepository(session)
-                tools = CurriculumRetrievalTools(repo, _fake_embed)
-                svc = _make_service(repo, tools)
+                svc = _make_service(factory)
 
                 await repo.add_chunk(
                     content="نحو: الفاعل مرفوع",
@@ -68,8 +65,7 @@ def test_search_external_mock() -> None:
         async with open_session_factory(database_url) as factory:
             async with factory() as session:
                 repo = KnowledgeRepository(session)
-                tools = CurriculumRetrievalTools(repo, _fake_embed)
-                svc = _make_service(repo, tools)
+                svc = _make_service(factory)
 
                 search_resp = MagicMock()
                 search_resp.status_code = 200
@@ -119,8 +115,7 @@ def test_search_hybrid_no_external_when_good() -> None:
                 await session.execute(text("DELETE FROM knowledge_chunks;"))
                 await session.commit()
                 repo = KnowledgeRepository(session)
-                tools = CurriculumRetrievalTools(repo, _fake_embed)
-                svc = _make_service(repo, tools)
+                svc = _make_service(factory)
 
                 await repo.add_chunk(
                     content="نحو: الفاعل مرفوع",
@@ -147,8 +142,7 @@ def test_search_hybrid_triggers_external_on_empty() -> None:
         async with open_session_factory(database_url) as factory:
             async with factory() as session:
                 repo = KnowledgeRepository(session)
-                tools = CurriculumRetrievalTools(repo, _fake_embed)
-                svc = _make_service(repo, tools)
+                svc = _make_service(factory)
 
                 search_resp = _make_search_resp([{"title": "الفاعل"}])
                 summary_resp = _make_summary_resp()

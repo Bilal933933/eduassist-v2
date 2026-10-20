@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.models.base import Base
@@ -43,6 +44,10 @@ class Message(Base):
     user_id: Mapped[UUID] = mapped_column(sa.Uuid(), nullable=False)
     sender: Mapped[str] = mapped_column(sa.String(length=16), nullable=False)
     content: Mapped[str] = mapped_column(sa.Text(), nullable=False)
+    # اسم السمة metadata_ لأن "metadata" محجوز في التصريح SQLAlchemy.
+    metadata_: Mapped[dict | None] = mapped_column(
+        "metadata", JSONB, nullable=True, default=None
+    )
     sequence_number: Mapped[int] = mapped_column(
         sa.BigInteger(),
         sa.Identity(),

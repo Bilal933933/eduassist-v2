@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import api.deps as deps
+from config.settings import settings
 from db.session import open_session_factory
 from services.chat_runs import active_chat_runs
 
@@ -43,10 +44,12 @@ def fake_websocket() -> FakeWebSocket:
 
 @pytest.fixture(autouse=True)
 def reset_shared_state() -> None:
-    """تصفير محددات المعدل وسجل التشغيلات النشطة قبل كل اختبار."""
+    """تصفير محددات المعدل وسجل التشغيلات النشطة وقناة التصحيح قبل كل اختبار."""
     deps.auth_limiter.reset()
     deps.chat_limiter.reset()
     active_chat_runs.reset()
+    # الاختبارات لا تعتمد على قيمة .env المحلية: قناة الميتا ديتا مغلقة افتراضيًا.
+    settings.DEBUG_METADATA = False
 
 
 @pytest.fixture

@@ -110,6 +110,16 @@ def test_failed_event_has_separate_envelope(fake_websocket) -> None:
     assert fake_websocket.events[0]["data"] is None
 
 
+def test_completed_event_carries_metadata_only_when_present() -> None:
+    """حدث الاكتمال يحمل ميتا داتا المصدر إن وُجدت ويغيب المفتاح بدونها."""
+    from realtime.chat_server import completed_event
+
+    without = completed_event("c-1", "رد")
+    assert "metadata" not in without["data"]
+    with_metadata = completed_event("c-1", "رد", {"handled_by": "greeting_node"})
+    assert with_metadata["data"]["metadata"] == {"handled_by": "greeting_node"}
+
+
 class _DeadWebSocket:
     """اتصال ميت يفشل عند أي إرسال."""
 

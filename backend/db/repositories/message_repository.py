@@ -19,13 +19,15 @@ class MessageRepository:
         user_id: UUID,
         sender: str,
         content: str,
+        metadata: dict | None = None,
     ) -> Message:
-        """إضافة رسالة مع مالك المحادثة."""
+        """إضافة رسالة مع مالك المحادثة وميتا داتا مصدر الرد."""
         message = Message(
             conversation_id=conversation_id,
             user_id=user_id,
             sender=sender,
             content=content,
+            metadata_=metadata,
         )
         self._session.add(message)
         await self._session.flush()

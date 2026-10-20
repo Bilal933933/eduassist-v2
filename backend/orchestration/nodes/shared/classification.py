@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 from typing import cast
 
-from orchestration.state import AgentState, Intent
+from orchestration.state import AgentState, Intent, append_node
 from prompts.tasks import INTENT_CLASSIFICATION_TASK, INTENT_HINT
 from shared.prompt_builder import build_prompt
 
@@ -54,12 +54,13 @@ def create_classification_node(
         )
         return {
             "intent": intent,
-            "metadata": {
-                **state.get("metadata", {}),
-                "classified_as": intent,
-                "classifier_node": "classification_node",
-                "classifier_task": "intent_classifier",
-            },
+            "metadata": append_node(
+                state.get("metadata"),
+                "classify",
+                intent=intent,
+                classified_by="classification_node",
+                classifier_task="intent_classifier",
+            ),
         }
 
     return classification_node

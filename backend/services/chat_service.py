@@ -7,6 +7,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.settings import settings
+from db.checkpointer import prune_thread_checkpoints
 from db.models import TeacherProfile
 from db.repositories import (
     ConversationRepository,
@@ -14,7 +16,7 @@ from db.repositories import (
     TeacherProfileRepository,
 )
 from db.session import SessionFactory
-from graph import checkpoint_config
+from graph import checkpoint_config, scoped_thread_id
 from realtime.chat_server import chat_server
 from services.chat_runs import active_chat_runs
 from services.errors import (
@@ -97,6 +99,9 @@ async def accept_chat(
         }
         if user_role == "teacher":
             profile = await TeacherProfileRepository(session).get_by_user(user_id)
+            if profile is not None:
+                context["subject"] = profile.subject
+                context["grade"] = profile.class_name
             teacher_brief = build_teacher_brief(profile)
             if teacher_brief:
                 context["teacher_brief"] = teacher_brief
@@ -120,13 +125,23 @@ async def run_chat(
     conversation_key = str(accepted.conversation_id)
     try:
         await chat_server.send_started(owner_key, conversation_key)
-        response = await _collect_response(graph, accepted)
+        response, metadata = await _collect_response(graph, accepted)
         if not response or not response.strip():
             logger.error("انتهى الرسم دون رد للمحادثة %s", conversation_key)
             await _send_failed(owner_key, conversation_key)
             return
-        await _save_assistant_reply(session_factory, accepted, response)
-        await chat_server.send_completed(owner_key, conversation_key, response)
+        # الميتا ديتا لا تُنشر إلا في وضع التصحيح، ولا تُنشر فارغة.
+        debug_metadata = metadata if settings.DEBUG_METADATA and metadata else None
+        await _save_assistant_reply(
+            session_factory, accepted, response, debug_metadata
+        )
+        await prune_thread_checkpoints(
+            getattr(graph, "checkpointer", None),
+            scoped_thread_id(owner_key, conversation_key),
+        )
+        await chat_server.send_completed(
+            owner_key, conversation_key, response, debug_metadata
+        )
     except Exception:
         # رسالة المستخدم محفوظة مسبقًا: الفشل يُبلَّغ عبر المقبس فقط.
         logger.exception("فشل تشغيل المحادثة %s", conversation_key)
@@ -135,8 +150,10 @@ async def run_chat(
         active_chat_runs.end(owner_key, conversation_key)
 
 
-async def _collect_response(graph: Any, accepted: AcceptedChat) -> str | None:
-    """بث أحداث الرسم واستخراج آخر رد نصي."""
+async def _collect_response(
+    graph: Any, accepted: AcceptedChat
+) -> tuple[str | None, dict[str, Any]]:
+    """بث أحداث الرسم واستخراج آخر رد نصي مع ميتا داتا مصدره."""
     owner_key = str(accepted.user_id)
     event_stream = graph.astream_events(
         {
@@ -144,24 +161,33 @@ async def _collect_response(graph: Any, accepted: AcceptedChat) -> str | None:
             "user_id": owner_key,
             "user_role": accepted.user_role,
             "context": accepted.context,
+            # تصفير الميتا ديتا لكل دور: نقطة التفتيش تحتفظ بالقيمة السابقة
+            # فتُلحق مسار تنفيذ الدور السابق بمسار الدور الجديد.
+            "metadata": {},
         },
         checkpoint_config(owner_key, str(accepted.conversation_id)),
         version="v2",
     )
     response: str | None = None
+    metadata: dict[str, Any] = {}
     async for event in event_stream:
         if event.get("event") != "on_chain_end":
             continue
         output = event.get("data", {}).get("output", {})
-        if isinstance(output, dict) and isinstance(output.get("response"), str):
+        if not isinstance(output, dict):
+            continue
+        if isinstance(output.get("response"), str):
             response = output["response"]
-    return response
+        if isinstance(output.get("metadata"), dict):
+            metadata = output["metadata"]
+    return response, metadata
 
 
 async def _save_assistant_reply(
     session_factory: SessionFactory,
     accepted: AcceptedChat,
     response: str,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """حفظ رد المساعد بجلسة مستقلة عن جلسة الطلب المنتهية."""
     async with session_factory() as session:
@@ -176,6 +202,7 @@ async def _save_assistant_reply(
             accepted.user_id,
             "assistant",
             response,
+            metadata=metadata,
         )
         conversation.updated_at = datetime.now(timezone.utc)
         await session.commit()

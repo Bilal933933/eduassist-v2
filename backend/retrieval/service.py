@@ -1,31 +1,32 @@
 """خدمة استرجاع موحّدة (المرحلة 5): داخلي + خارجي + hybrid."""
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from db.repositories.knowledge_repository import KnowledgeRepository
+from db.session import SessionFactory
 from retrieval.external import search_wikipedia
 from retrieval.tools import CurriculumRetrievalTools
 
 logger = logging.getLogger("eduassist.retrieval.service")
 
+EmbedFn = Callable[[str], Awaitable[list[float]]]
+
 
 class RetrievalService:
     """واجهة موحّدة للاسترجاع: داخلي، خارجي، hybrid.
 
-    الاعتماديات (repository, tools, embed_fn) تُحقن من الخارج (DI).
+    الاعتماديات (مصنع الجلسات، دالة التضمين) تُحقن من الخارج (DI).
     """
 
     def __init__(
         self,
-        repository: KnowledgeRepository,
-        tools: CurriculumRetrievalTools,
-        embed_fn: Callable[[str], list[float]],
+        session_factory: SessionFactory,
+        embed_fn: EmbedFn,
         score_threshold: float = 0.65,
     ) -> None:
-        self._repo = repository
-        self._tools = tools
+        self._session_factory = session_factory
         self._embed_fn = embed_fn
         self._score_threshold = score_threshold
 
@@ -37,9 +38,13 @@ class RetrievalService:
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
         """بحث داخلي في المنهج (pgvector)."""
-        return await self._tools.search_curriculum(
-            query=query, subject=subject, grade=grade, top_k=top_k
-        )
+        async with self._session_factory() as session:
+            tools = CurriculumRetrievalTools(
+                KnowledgeRepository(session), self._embed_fn
+            )
+            return await tools.search_curriculum(
+                query=query, subject=subject, grade=grade, top_k=top_k
+            )
 
     async def search_external(
         self,
@@ -69,23 +74,15 @@ class RetrievalService:
         internal = await self.search_internal(
             query=query, subject=subject, grade=grade, top_k=top_k
         )
+        for result in internal:
+            result.setdefault("source_type", "curriculum")
 
-        # إضافة source_type للنتائج الداخلية
-        for r in internal:
-            r.setdefault("source_type", "curriculum")
-
-        need_external = False
-        if not internal:
-            need_external = True
-        elif internal[0].get("score", 0) < self._score_threshold:
-            need_external = True
-        elif len(internal) < top_k:
-            need_external = True
-
+        need_external = (
+            not internal
+            or internal[0].get("score", 0) < self._score_threshold
+            or len(internal) < top_k
+        )
         if not need_external:
-            # إضافة source_type للنتائج الداخلية
-            for r in internal:
-                r.setdefault("source_type", "curriculum")
             return internal
 
         external = await self.search_external(
@@ -93,12 +90,9 @@ class RetrievalService:
         )
 
         # دمج النتائج: داخلية أولاً، ثم خارجية
-        merged: list[dict[str, Any]] = []
-        for r in internal:
-            r.setdefault("source_type", "curriculum")
-            merged.append(r)
-        for r in external:
-            r.setdefault("source_type", "wikipedia")
-            merged.append(r)
+        merged: list[dict[str, Any]] = [*internal]
+        for result in external:
+            result.setdefault("source_type", "wikipedia")
+            merged.append(result)
 
         return merged

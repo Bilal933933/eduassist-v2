@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState
+from orchestration.state import AgentState, append_node
 from prompts.system import ABUSE_SYSTEM_PROMPT
 from prompts.tasks import ABUSE_ESCALATION_TASK, ABUSE_RESPONSE_TASK
 from shared.prompt_builder import build_prompt
@@ -23,6 +23,17 @@ def create_abuse_node(
             role="educational_assistant",
         )
         response = await call_model(prompt, ABUSE_SYSTEM_PROMPT, 0.2)
-        return {"response": response, "abuse_count": count}
+        return {
+            "response": response,
+            "abuse_count": count,
+            "metadata": append_node(
+                state.get("metadata"),
+                "abuse",
+                handled_by="abuse_node",
+                response_source="llm",
+                generator_role="educational_assistant",
+                abuse_count=count,
+            ),
+        }
 
     return abuse_node

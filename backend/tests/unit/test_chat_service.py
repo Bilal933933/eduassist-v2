@@ -19,11 +19,17 @@ from tests.conftest import FakeWebSocket
 
 
 class _FakeGraph:
-    """رسم وهمي يبث ردًا أو يفشل."""
+    """رسم وهمي يبث ردًا مع ميتا ديتا أو يفشل."""
 
-    def __init__(self, response: str | None = None, error: Exception | None = None):
+    def __init__(
+        self,
+        response: str | None = None,
+        error: Exception | None = None,
+        metadata: dict | None = None,
+    ):
         self._response = response
         self._error = error
+        self._metadata = metadata
 
     def astream_events(self, state, config, version):  # type: ignore[no-untyped-def]
         """مولد أحداث على نمط LangGraph."""
@@ -33,9 +39,12 @@ class _FakeGraph:
             if self._error is not None:
                 raise self._error
             if self._response is not None:
+                output: dict = {"response": self._response}
+                if self._metadata is not None:
+                    output["metadata"] = self._metadata
                 yield {
                     "event": "on_chain_end",
-                    "data": {"output": {"response": self._response}},
+                    "data": {"output": output},
                 }
 
         return stream()
@@ -166,10 +175,46 @@ def test_run_chat_success_saves_reply_and_emits_events(monkeypatch) -> None:
     assert [e["type"] for e in socket.events] == ["chat.started", "chat.completed"]
     assert socket.events[1]["data"]["response"] == "أهلًا"
     env.messages.add.assert_awaited_once_with(
-        accepted.conversation_id, accepted.user_id, "assistant", "أهلًا"
+        accepted.conversation_id, accepted.user_id, "assistant", "أهلًا", metadata=None
     )
     env.session.commit.assert_awaited_once()
     assert active_chat_runs.try_begin(str(accepted.user_id), str(accepted.conversation_id))
+
+
+def test_run_chat_omits_metadata_when_debug_is_disabled(monkeypatch) -> None:
+    """مع تعطيل وضع التصحيح لا تتسرب ميتا ديتا في الحدث ولا في القاعدة."""
+    monkeypatch.setattr(chat_service.settings, "DEBUG_METADATA", False)
+    socket = FakeWebSocket()
+    metadata = {"handled_by": "student_generation_node", "nodes_path": ["classify"]}
+    accepted, env = _run(
+        monkeypatch, _FakeGraph(response="أهلًا", metadata=metadata), socket
+    )
+    assert "metadata" not in socket.events[1]["data"]
+    env.messages.add.assert_awaited_once_with(
+        accepted.conversation_id, accepted.user_id, "assistant", "أهلًا", metadata=None
+    )
+
+
+def test_run_chat_publishes_metadata_in_debug_mode(monkeypatch) -> None:
+    """في وضع التصحيح تُنشر ميتا ديتا المصدر في الحدث وتُحفظ مع الرسالة."""
+    monkeypatch.setattr(chat_service.settings, "DEBUG_METADATA", True)
+    socket = FakeWebSocket()
+    metadata = {
+        "handled_by": "student_generation_node",
+        "intent": "generation",
+        "nodes_path": ["classify", "generation"],
+    }
+    accepted, env = _run(
+        monkeypatch, _FakeGraph(response="أهلًا", metadata=metadata), socket
+    )
+    assert socket.events[1]["data"]["metadata"] == metadata
+    env.messages.add.assert_awaited_once_with(
+        accepted.conversation_id,
+        accepted.user_id,
+        "assistant",
+        "أهلًا",
+        metadata=metadata,
+    )
 
 
 def test_run_chat_graph_error_emits_failed_without_raising(monkeypatch) -> None:

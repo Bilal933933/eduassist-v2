@@ -1,11 +1,11 @@
 "use client";
 
-import { LogOut, Plus } from "lucide-react";
+import { LogOut, Plus, Sparkles, UserCog } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,18 +14,25 @@ import { useLogout } from "@/features/auth/hooks/use-auth";
 import { useConversations, useCreateConversation } from "../hooks/use-conversations";
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("ar", {
-    day: "numeric",
-    month: "short",
-  });
+  const date = new Date(value);
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  if (sameDay) {
+    return date.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
+  }
+  return date.toLocaleDateString("ar", { day: "numeric", month: "short" });
 }
 
 export function ConversationList({
   userName,
+  userRole,
   onSelect,
+  className,
 }: {
   userName: string;
+  userRole?: string;
   onSelect?: () => void;
+  className?: string;
 }) {
   const pathname = usePathname();
   const logout = useLogout();
@@ -54,11 +61,11 @@ export function ConversationList({
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className="flex h-full w-72 flex-col bg-white">
-      <div className="flex items-center justify-between p-4">
-        <div>
-          <p className="font-bold">المساعد النحوي</p>
-          <p className="text-xs text-slate-500">مرحبًا، {userName}</p>
+    <div className={`flex h-full w-72 flex-col bg-white ${className ?? ""}`}>
+      <div className="flex items-center justify-between gap-2 p-4">
+        <div className="min-w-0">
+          <p className="truncate font-bold text-slate-900">المساعد النحوي</p>
+          <p className="truncate text-xs text-slate-500">مرحبًا، {userName}</p>
         </div>
         <Button size="sm" onClick={handleNew} disabled={createConversation.isPending}>
           <Plus className="size-4" />
@@ -72,12 +79,34 @@ export function ConversationList({
             <Skeleton key={index} className="mb-2 h-14 w-full" />
           ))}
         {list.isError && (
-          <p className="p-4 text-sm text-red-700">تعذر تحميل المحادثات.</p>
+          <div className="p-4 text-center">
+            <p className="text-sm text-red-700">تعذر تحميل المحادثات.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => list.refetch()}
+            >
+              إعادة المحاولة
+            </Button>
+          </div>
         )}
-        {!list.isPending && items.length === 0 && (
-          <p className="p-4 text-center text-sm text-slate-400">
-            لا محادثات بعد — ابدأ واحدة جديدة.
-          </p>
+        {!list.isPending && !list.isError && items.length === 0 && (
+          <div className="px-4 py-10 text-center">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+              <Sparkles className="size-5" />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              لا محادثات بعد
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              ابدأ محادثة جديدة لتسأل عن أي قاعدة نحوية.
+            </p>
+            <Button size="sm" className="mt-4" onClick={handleNew}>
+              <Plus className="size-4" />
+              محادثة جديدة
+            </Button>
+          </div>
         )}
         {items.map((conversation) => {
           const active = pathname === `/chat/${conversation.id}`;
@@ -86,8 +115,11 @@ export function ConversationList({
               key={conversation.id}
               href={`/chat/${conversation.id}`}
               onClick={onSelect}
+              aria-current={active ? "page" : undefined}
               className={`mb-1 block rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                active ? "bg-emerald-50 font-semibold" : "hover:bg-slate-100"
+                active
+                  ? "bg-emerald-50 font-semibold text-emerald-900"
+                  : "text-slate-700 hover:bg-slate-100"
               }`}
             >
               <span className="flex items-center justify-between gap-2">
@@ -98,7 +130,7 @@ export function ConversationList({
                   <Badge variant="secondary">مؤرشفة</Badge>
                 )}
               </span>
-              <span className="mt-1 block text-xs text-slate-400">
+              <span className="mt-1 block text-xs tabular-nums text-slate-400">
                 {formatDate(conversation.updated_at)}
               </span>
             </Link>
@@ -117,7 +149,17 @@ export function ConversationList({
         )}
       </ScrollArea>
       <Separator />
-      <div className="p-4">
+      <div className="space-y-2 p-4">
+        {userRole === "teacher" && (
+          <Link
+            href="/profile"
+            onClick={onSelect}
+            className={buttonVariants({ variant: "outline", className: "w-full" })}
+          >
+            <UserCog className="size-4" />
+            بروفايل المعلم
+          </Link>
+        )}
         <Button
           variant="outline"
           className="w-full"

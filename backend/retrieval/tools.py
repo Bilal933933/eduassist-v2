@@ -1,13 +1,15 @@
 """أدوات استرجاع المعرفة (المرحلة 2): طبقة رقيقة فوق KnowledgeRepository."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models.knowledge import KnowledgeChunk
 from db.repositories.knowledge_repository import KnowledgeRepository
+
+EmbedQuery = Callable[[str], Awaitable[list[float]]]
 
 
 class CurriculumRetrievalTools:
@@ -19,7 +21,7 @@ class CurriculumRetrievalTools:
     def __init__(
         self,
         repository: KnowledgeRepository,
-        embed_query: Callable[[str], list[float]],
+        embed_query: EmbedQuery,
     ) -> None:
         self._repo = repository
         self._embed_query = embed_query
@@ -35,7 +37,7 @@ class CurriculumRetrievalTools:
 
         يولد embedding للاستعلام ثم يبحث عبر KnowledgeRepository.
         """
-        vector = self._embed_query(query)
+        vector = await self._embed_query(query)
         results = await self._repo.search_similar(
             query_embedding=vector,
             limit=top_k,

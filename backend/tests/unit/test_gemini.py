@@ -114,6 +114,43 @@ def test_gemini_does_not_retry_unexpected_errors(monkeypatch) -> None:
     assert generate_content.await_count == 1
 
 
+def test_gemini_embeds_text_with_fixed_dimensions(monkeypatch) -> None:
+    """يطلب المحول تضميناً بأبعاد مطابقة لعمود معرفة المنهج."""
+    embed_content = AsyncMock(
+        return_value=SimpleNamespace(
+            embeddings=[SimpleNamespace(values=[0.1] * 768)]
+        )
+    )
+    fake_client = Mock()
+    fake_client.aio.models.embed_content = embed_content
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+
+    client = GeminiClient("test-key", "test-model")
+    result = asyncio.run(client.embed("كان وأخواتها"))
+
+    assert len(result) == 768
+    call = embed_content.await_args.kwargs
+    assert call["model"] == "gemini-embedding-001"
+    assert call["contents"] == "كان وأخواتها"
+    assert call["config"].output_dimensionality == 768
+
+
+def test_gemini_embed_rejects_wrong_dimensions(monkeypatch) -> None:
+    """يرفض المحول متجهاً بأبعاد لا تطابق عمود المعرفة."""
+    embed_content = AsyncMock(
+        return_value=SimpleNamespace(
+            embeddings=[SimpleNamespace(values=[0.1] * 16)]
+        )
+    )
+    fake_client = Mock()
+    fake_client.aio.models.embed_content = embed_content
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+
+    client = GeminiClient("test-key", "test-model")
+    with pytest.raises(RuntimeError, match="أبعاد"):
+        asyncio.run(client.embed("كان وأخواتها"))
+
+
 def test_gemini_close_without_previous_connection() -> None:
     """لا يحتاج إغلاق المحول إلى إنشاء اتصال لم يُستخدم."""
     client = GeminiClient("", "test-model")

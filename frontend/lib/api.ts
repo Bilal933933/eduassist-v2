@@ -53,11 +53,18 @@ export type ChatMessage = {
   content: string;
   sequence_number: number;
   created_at: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type Page<T> = {
   items: T[];
   next_cursor: string | null;
+};
+
+export type TeacherProfile = {
+  subject: string;
+  class_name: string;
+  students_note: string;
 };
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
@@ -146,4 +153,20 @@ export function sendMessageRequest(conversationId: string, message: string) {
 
 export function socketUrlFor(conversationId: string) {
   return `${API_URL.replace(/^http/, "ws")}/api/ws/${conversationId}`;
+}
+
+// ─── بروفايل المعلم ───
+export function getTeacherProfileRequest() {
+  return request<TeacherProfile | null>("/api/profile", { method: "GET" });
+}
+
+export function saveTeacherProfileRequest(payload: {
+  subject: string;
+  class_name: string;
+  students_note: string;
+}) {
+  return request<TeacherProfile>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }

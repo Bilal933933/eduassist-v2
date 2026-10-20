@@ -16,6 +16,9 @@ GENERATE_TIMEOUT_SECONDS = 60.0
 RETRY_ATTEMPTS = 3
 RETRY_BASE_DELAY_SECONDS = 1.0
 
+# ─── التضمين: يجب أن يطابق أبعاد عمود knowledge_chunks (Vector(768)) ───
+EMBEDDING_DIMENSIONS = 768
+
 T = TypeVar("T")
 
 
@@ -43,11 +46,16 @@ class GeminiClient:
     """استدعاء جيمناي وإرجاع النص الناتج فقط."""
 
     def __init__(
-        self, api_key: str, model: str, fallback_model: str = "gemini-3.5-flash-lite"
+        self,
+        api_key: str,
+        model: str,
+        fallback_model: str = "gemini-3.5-flash-lite",
+        embedding_model: str = "gemini-embedding-001",
     ) -> None:
         self._api_key = api_key
         self._model = model
         self._fallback_model = fallback_model
+        self._embedding_model = embedding_model
         self._client: genai.Client | None = None
 
     def _get_client(self) -> genai.Client:
@@ -139,6 +147,31 @@ class GeminiClient:
             if not _should_fallback(error) or self._fallback_model == self._model:
                 raise
             return await self._call_with_retry(lambda: attempt(self._fallback_model))
+
+    async def embed(self, text: str) -> list[float]:
+        """توليد متجه تضمين بأبعاد مطابقة لعمود knowledge_chunks."""
+        async def attempt(model: str) -> list[float]:
+            response = await asyncio.wait_for(
+                self._get_client().aio.models.embed_content(
+                    model=model,
+                    contents=text,
+                    config=types.EmbedContentConfig(
+                        output_dimensionality=EMBEDDING_DIMENSIONS,
+                    ),
+                ),
+                timeout=GENERATE_TIMEOUT_SECONDS,
+            )
+            values = list(response.embeddings[0].values) if response.embeddings else []
+            if not values:
+                raise RuntimeError("لم يُرجع جيمناي متجه تضمين.")
+            if len(values) != EMBEDDING_DIMENSIONS:
+                raise RuntimeError(
+                    f"أبعاد التضمين {len(values)} لا تطابق عمود "
+                    f"knowledge_chunks ({EMBEDDING_DIMENSIONS})."
+                )
+            return values
+
+        return await self._call_with_retry(lambda: attempt(self._embedding_model))
 
     async def close(self) -> None:
         """إغلاق اتصالات العميل غير المتزامن والمتزامن."""

@@ -20,7 +20,8 @@ def _vec(values: list[float]) -> list[float]:
     return values + [0.0] * (_DIM - len(values))
 
 
-def _fake_embed(text: str) -> list[float]:
+async def _fake_embed(text: str) -> list[float]:
+    _ = text
     return _vec([1.0, 0.0, 0.0])
 
 

@@ -39,4 +39,7 @@ def test_general_node_uses_latest_message_with_general_prompts() -> None:
             "temperature": 0.7,
         }
     ]
-    assert result == {"response": "رد حر"}
+    assert result["response"] == "رد حر"
+    assert result["metadata"]["handled_by"] == "general_node"
+    assert result["metadata"]["response_source"] == "llm"
+    assert result["metadata"]["generator_role"] == "general_assistant"

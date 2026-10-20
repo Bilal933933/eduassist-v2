@@ -23,4 +23,7 @@ def test_generation_node_uses_latest_message() -> None:
         '{"message":"حديثة","context":{},"task":"answer",'
         '"role":"educational_assistant"}'
     ]
-    assert result == {"response": "رد مولد"}
+    assert result["response"] == "رد مولد"
+    assert result["metadata"]["handled_by"] == "student_generation_node"
+    assert result["metadata"]["generator_role"] == "educational_assistant"
+    assert result["metadata"]["recalled"] is False

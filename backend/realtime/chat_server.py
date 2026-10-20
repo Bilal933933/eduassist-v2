@@ -1,5 +1,6 @@
 """خادم اتصالات وأحداث المحادثة بعقد منفصل عن HTTP."""
 import logging
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -15,11 +16,21 @@ def started_event(conversation_id: str) -> dict:
     }
 
 
-def completed_event(conversation_id: str, response: str) -> dict:
-    """حدث اكتمال المعالجة: النوع والبيانات فقط."""
+def completed_event(
+    conversation_id: str,
+    response: str,
+    metadata: dict[str, Any] | None = None,
+) -> dict:
+    """حدث اكتمال المعالجة: النوع والبيانات فقط.
+
+    ``metadata`` تُضاف فقط في وضع التصحيح؛ غيابها يعني أن البوابة مغلقة.
+    """
+    data: dict[str, Any] = {"conversation_id": conversation_id, "response": response}
+    if metadata:
+        data["metadata"] = metadata
     return {
         "type": "chat.completed",
-        "data": {"conversation_id": conversation_id, "response": response},
+        "data": data,
         "error": None,
     }
 
@@ -70,11 +81,17 @@ class ChatServer:
         await self._send(user_id, conversation_id, started_event(conversation_id))
 
     async def send_completed(
-        self, user_id: str, conversation_id: str, response: str
+        self,
+        user_id: str,
+        conversation_id: str,
+        response: str,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """إرسال حدث اكتمال معالجة الرسالة."""
         await self._send(
-            user_id, conversation_id, completed_event(conversation_id, response)
+            user_id,
+            conversation_id,
+            completed_event(conversation_id, response, metadata),
         )
 
     async def send_failed(

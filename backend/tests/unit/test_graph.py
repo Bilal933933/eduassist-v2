@@ -32,9 +32,10 @@ def test_greeting_node_uses_model_without_mutating_state() -> None:
     greeting_node = create_greeting_node(fake_generate)
     state = {"messages": ["مرحبًا"], "user_id": "user-1"}
     snapshot = dict(state)
-    assert asyncio.run(greeting_node(state)) == {
-        "response": "أهلًا بك، كيف يمكنني مساعدتك؟"
-    }
+    result = asyncio.run(greeting_node(state))
+    assert result["response"] == "أهلًا بك، كيف يمكنني مساعدتك؟"
+    assert result["metadata"]["handled_by"] == "greeting_node"
+    assert result["metadata"]["nodes_path"] == ["greeting"]
     assert received == [
         {
             "payload": {
@@ -70,8 +71,9 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
         snapshot = {"messages": [message], "user_id": "user-1"}
         result = asyncio.run(classify_node(state))
         assert result["intent"] == expected_intent
-        assert result["metadata"]["classified_as"] == expected_intent
-        assert result["metadata"]["classifier_node"] == "classification_node"
+        assert result["metadata"]["intent"] == expected_intent
+        assert result["metadata"]["classified_by"] == "classification_node"
+        assert result["metadata"]["nodes_path"] == ["classify"]
         assert state == snapshot
 
 
@@ -86,13 +88,15 @@ def test_classification_node_uses_generation_for_invalid_result() -> None:
     result = asyncio.run(classify_node({"messages": ["رسالة"]}))
 
     assert result["intent"] == "generation"
-    assert result["metadata"]["classified_as"] == "generation"
+    assert result["metadata"]["intent"] == "generation"
 
 
 def test_quick_reply_node_returns_specific_response() -> None:
     """عقدة الرد السريع لا تعتمد على تطابق نص الرسالة."""
     result = quick_reply_node({"messages": ["متشكر جدًا"]})
-    assert result == {"response": "يسعدني ذلك، وأنا جاهز لمساعدتك."}
+    assert result["response"] == "يسعدني ذلك، وأنا جاهز لمساعدتك."
+    assert result["metadata"]["handled_by"] == "quick_reply_node"
+    assert result["metadata"]["response_source"] == "template"
 
 
 def test_graph_routes_greeting_quick_reply_and_generation_message() -> None:
@@ -204,7 +208,10 @@ def test_abuse_node_escalates_count_without_mutating_state() -> None:
 
     result = asyncio.run(abuse_node(state))
 
-    assert result == {"response": "رد مهذب", "abuse_count": 2}
+    assert result["response"] == "رد مهذب"
+    assert result["abuse_count"] == 2
+    assert result["metadata"]["handled_by"] == "abuse_node"
+    assert result["metadata"]["abuse_count"] == 2
     assert state == snapshot
 
 
@@ -236,6 +243,48 @@ def test_checkpoint_is_isolated_by_user_and_conversation() -> None:
 
     result = asyncio.run(run_isolated_calls())
     assert result["messages"] == ["الثانية"]
+
+
+def test_metadata_path_does_not_accumulate_across_turns() -> None:
+    """ميتا ديتا الدور الجديد لا ترث مسار تنفيذ الدور السابق."""
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        return message
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "generation"
+
+    async def scenario() -> dict:
+        assistant_graph = build_graph(
+            call_model=fake_generate,
+            classify_intent=fake_classify,
+        )
+        config = checkpoint_config("user-1", "metadata-path")
+        await assistant_graph.ainvoke(
+            {
+                "messages": ["الأولى"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+            },
+            config,
+        )
+        return await assistant_graph.ainvoke(
+            {
+                "messages": ["الثانية"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+            },
+            config,
+        )
+
+    result = asyncio.run(scenario())
+    assert result["metadata"]["nodes_path"] == ["classify", "generation"]
 
 
 def test_checkpoint_accumulates_messages_without_subgraph_duplication() -> None:

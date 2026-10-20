@@ -31,15 +31,15 @@ export function HomeHero({ userName }: { userName?: string }) {
       <Card className="w-full text-center">
         <CardContent className="space-y-4 p-8">
           <p className="text-sm font-semibold text-emerald-700">EduAssist V2</p>
-          <h1 className="text-3xl font-bold text-slate-950">المساعد النحوي</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-balance text-3xl font-bold text-slate-950">المساعد النحوي</h1>
+          <p className="text-pretty text-sm text-slate-500">
             مساعد تعليمي ذكي للغة العربية — اسأل عن القواعد واحفظ محادثاتك.
           </p>
           <Button
-            className="w-full"
+            className="w-full bg-emerald-700 text-white hover:bg-emerald-800"
             onClick={() => router.push(userName ? "/chat" : "/login")}
           >
-            {userName ? `أكمل كـ ${userName}` : "ابدأ الآن"}
+            {userName ? "ابدأ المحادثة" : "ابدأ الآن"}
           </Button>
         </CardContent>
       </Card>

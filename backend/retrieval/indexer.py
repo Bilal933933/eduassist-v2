@@ -1,14 +1,14 @@
 """فهرسة المعرفة (Indexer) — المرحلة 3: قراءة ملفات + تقطيع + تضمين + تخزين."""
 
-import os
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from db.models.knowledge import KnowledgeChunk
 from db.repositories.knowledge_repository import KnowledgeRepository
 from retrieval.chunking import chunk_markdown, chunk_text
+
+EmbedFn = Callable[[str], Awaitable[list[float]]]
 
 
 def _read_frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -50,77 +50,11 @@ def _infer_metadata(file_path: Path, text_content: str) -> dict[str, Any]:
     return meta
 
 
-def index_file(
-    file_path: Path,
-    repository: KnowledgeRepository,
-    embed_fn: Callable[[str], list[float]],
-    default_metadata: dict[str, Any] | None = None,
-) -> int:
-    """فهرسة ملف واحد. يعيد عدد القطع المخزنة."""
-    text_content = file_path.read_text(encoding="utf-8")
-    meta = _infer_metadata(file_path, text_content)
-    body = meta.pop("_body", text_content)
-
-    if default_metadata:
-        for k, v in default_metadata.items():
-            meta.setdefault(k, v)
-
-    # اختيار طريقة التقطيع بناءً على الامتداد
-    if file_path.suffix.lower() == ".md":
-        chunks = chunk_markdown(body)
-    else:
-        chunks = [{"content": c, "heading": ""} for c in chunk_text(body)]
-
-    if not chunks:
-        return 0
-
-    batch: list[dict[str, Any]] = []
-    for ch in chunks:
-        content = ch["content"].strip()
-        if not content:
-            continue
-        vec = embed_fn(content)
-        chunk_meta = {
-            "content": content,
-            "embedding": vec,
-            "subject": meta.get("subject"),
-            "grade": meta.get("grade"),
-            "chapter": meta.get("chapter") or ch.get("heading"),
-            "source": meta.get("source"),
-            "metadata_": {
-                k: v for k, v in meta.items() if k not in ("subject", "grade", "chapter", "source")
-            },
-        }
-        batch.append(chunk_meta)
-
-    if batch:
-        # KnowledgeChunk constructor يتوقع metadata_ (وليس metadata)
-        objs = []
-        for b in batch:
-            objs.append(
-                KnowledgeChunk(
-                    content=b["content"],
-                    embedding=b["embedding"],
-                    subject=b["subject"],
-                    grade=b["grade"],
-                    chapter=b["chapter"],
-                    source=b["source"],
-                    metadata_=b["metadata_"],
-                )
-            )
-        repository._session.add_all(objs)  # noqa: SLF001
-        # flush handled by caller or here
-        import asyncio
-
-        # We'll let the caller commit; but flush to get IDs
-        # Since this is sync-ish wrapper, we handle async below
-    return len(batch)
-
 
 async def index_path(
     path: str | Path,
     repository: KnowledgeRepository,
-    embed_fn: Callable[[str], list[float]],
+    embed_fn: EmbedFn,
     default_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """فهرسة ملف أو مجلد.
@@ -160,7 +94,7 @@ async def index_path(
 async def _index_file_async(
     file_path: Path,
     repository: KnowledgeRepository,
-    embed_fn: Callable[[str], list[float]],
+    embed_fn: EmbedFn,
     default_metadata: dict[str, Any] | None,
 ) -> int:
     """فهرسة ملف واحد (async)."""
@@ -185,7 +119,7 @@ async def _index_file_async(
         content = ch["content"].strip()
         if not content:
             continue
-        vec = embed_fn(content)
+        vec = await embed_fn(content)
         batch.append(
             {
                 "content": content,

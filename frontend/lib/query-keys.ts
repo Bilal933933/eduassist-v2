@@ -5,4 +5,5 @@ export const queryKeys = {
   me: ["me"],
   conversations: ["conversations"],
   messages: (conversationId: string) => ["messages", conversationId],
+  teacherProfile: ["teacher-profile"],
 } as const;

@@ -2,7 +2,7 @@
 
 from collections.abc import Awaitable, Callable
 
-from orchestration.state import AgentState
+from orchestration.state import AgentState, append_node
 from prompts.system import SYSTEM_PROMPT
 from shared.prompt_builder import build_prompt
 
@@ -30,12 +30,14 @@ def create_teacher_generation_node(
         response = await call_model(prompt, SYSTEM_PROMPT, 0.2)
         return {
             "response": response,
-            "metadata": {
-                **state.get("metadata", {}),
-                "handled_by": "teacher_generation_node",
-                "intent": state.get("intent"),
-                "generator_role": "teacher_assistant",
-            },
+            "metadata": append_node(
+                state.get("metadata"),
+                "generation",
+                handled_by="teacher_generation_node",
+                response_source="llm",
+                generator_role="teacher_assistant",
+                recalled=bool(state.get("summary")),
+            ),
         }
 
     return teacher_generation_node

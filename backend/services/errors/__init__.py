@@ -20,6 +20,7 @@ from services.errors.conversations import (
     ConversationNotFoundError,
     EventConnectionRequiredError,
 )
+from services.errors.profile import TeacherProfileForbiddenError
 from services.errors.request import (
     InvalidCursorError,
     OriginNotAllowedError,
@@ -44,6 +45,7 @@ __all__ = [
     "RateLimitError",
     "RateLimitExceededError",
     "SessionInvalidError",
+    "TeacherProfileForbiddenError",
     "ValidationError",
 ]
 
@@ -61,4 +63,5 @@ ALL_ERRORS: tuple[type[AppError], ...] = (
     OriginNotAllowedError,
     RateLimitExceededError,
     SessionInvalidError,
+    TeacherProfileForbiddenError,
 )

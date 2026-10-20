@@ -9,6 +9,11 @@ from uuid import uuid4
 from db.repositories.teacher_profile_repository import TeacherProfileRepository
 from graph import build_graph, checkpoint_config
 from orchestration.graphs.main import route_role
+from orchestration.nodes.shared import (
+    create_general_node,
+    create_greeting_node,
+    quick_reply_node,
+)
 from services.chat_service import build_teacher_brief
 
 
@@ -113,6 +118,54 @@ def test_teacher_without_brief_uses_teacher_path() -> None:
 
     assert result["response"] == "رد المعلم"
     assert received[0]["role"] == "teacher_assistant"
+
+
+def test_greeting_node_uses_teacher_task_for_teacher() -> None:
+    """عقدة التحية تختار مهمة المعلم عندما يكون صاحب المحادثة معلمًا."""
+    received: list[str] = []
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        received.append(message)
+        return "رد"
+
+    node = create_greeting_node(fake_generate)
+
+    asyncio.run(node({"messages": ["مرحبا"], "user_role": "teacher", "context": {}}))
+    asyncio.run(node({"messages": ["مرحبا"], "user_role": "student", "context": {}}))
+
+    assert received[0] != received[1], "task واحدة للمعلم والطالب"
+    assert "معلم" in received[0]
+
+
+def test_general_node_uses_teacher_task_for_teacher() -> None:
+    """عقدة الرد العام تختار مهمة المعلم عندما يكون صاحب المحادثة معلمًا."""
+    received: list[dict] = []
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        received.append(json.loads(message))
+        return "رد"
+
+    node = create_general_node(fake_generate)
+
+    asyncio.run(node({"messages": ["سؤال"], "user_role": "teacher", "context": {}}))
+    asyncio.run(node({"messages": ["سؤال"], "user_role": "student", "context": {}}))
+
+    assert received[0]["role"] == "teacher_assistant"
+    assert received[1]["role"] == "general_assistant"
+
+
+def test_quick_reply_node_uses_teacher_text_for_teacher() -> None:
+    """عقدة الرد السريع تختار نص المعلم عندما يكون صاحب المحادثة معلمًا."""
+    teacher = quick_reply_node({"messages": ["شكرا"], "user_role": "teacher"})
+    student = quick_reply_node({"messages": ["شكرا"], "user_role": "student"})
+
+    assert teacher["response"] != student["response"]
 
 
 def test_teacher_profile_repository_get_and_upsert() -> None:

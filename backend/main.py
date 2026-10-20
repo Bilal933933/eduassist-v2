@@ -10,11 +10,13 @@ from adapters.llm import GeminiClient
 from services.errors.handlers import register_error_handlers
 from api.routes.auth import router as auth_router
 from api.routes.chat import router as chat_router
+from api.routes.profile import router as profile_router
 from config.settings import settings
 from db.checkpointer import open_checkpointer
 from db.session import open_session_factory
 from graph import build_graph
 from realtime.routes import router as events_router
+from retrieval.service import RetrievalService
 
 
 if sys.platform == "win32":
@@ -29,6 +31,7 @@ async def lifespan(app: FastAPI):
         settings.GEMINI_API_KEY,
         settings.GEMINI_MODEL,
         settings.GEMINI_FALLBACK_MODEL,
+        settings.GEMINI_EMBEDDING_MODEL,
     )
     async with (
         open_checkpointer(settings.DATABASE_URL) as checkpointer,
@@ -39,6 +42,10 @@ async def lifespan(app: FastAPI):
                 checkpointer,
                 call_model=gemini.generate,
                 classify_intent=gemini.generate_enum,
+                retrieval_service=RetrievalService(
+                    session_factory=session_factory,
+                    embed_fn=gemini.embed,
+                ),
             )
             app.state.session_factory = session_factory
             yield
@@ -57,4 +64,5 @@ app.add_middleware(
 register_error_handlers(app)
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(profile_router)
 app.include_router(events_router)

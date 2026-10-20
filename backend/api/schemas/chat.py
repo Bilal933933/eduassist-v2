@@ -1,9 +1,9 @@
 """نماذج طلب المحادثة واستجابتها."""
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class ChatRequest(BaseModel):
@@ -51,6 +51,11 @@ class MessageItem(BaseModel):
     content: str
     sequence_number: int
     created_at: datetime
+    # ميتا ديتا مصدر الرد: تُقرأ من السمة metadata_ لأن "metadata" محجوزة في SQLAlchemy.
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("metadata_", "metadata"),
+    )
 
 
 ItemT = TypeVar("ItemT")

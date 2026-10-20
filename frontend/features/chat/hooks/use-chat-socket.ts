@@ -8,7 +8,13 @@ import { queryKeys } from "@/lib/query-keys";
 
 type ChatEvent = {
   type: "chat.started" | "chat.completed" | "chat.failed";
-  data: { response?: string; conversation_id?: string } | null;
+  data:
+    | {
+        response?: string;
+        conversation_id?: string;
+        metadata?: Record<string, unknown>;
+      }
+    | null;
   error: { code?: string; message?: string } | null;
 };
 
@@ -21,7 +27,10 @@ export function useChatSocket(
   const queryClient = useQueryClient();
   const [isConnected, setIsConnected] = useState(false);
   const settledRef = useRef(onSettled);
-  settledRef.current = onSettled;
+
+  useEffect(() => {
+    settledRef.current = onSettled;
+  }, [onSettled]);
 
   useEffect(() => {
     if (!conversationId) return;

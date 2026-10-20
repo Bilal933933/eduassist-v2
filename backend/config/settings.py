@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+
+    # ─── وضع التصحيح ───
+    # يتيح إخراج ميتا ديتا مصدر الرد (العقدة والنية ومسار التنفيذ) في الأحداث
+    # وقاعدة البيانات؛ يبقى معطّلًا افتراضيًا حتى لا تتسرب أسماء العقد للعميل.
+    DEBUG_METADATA: bool = False
 
     @property
     def is_production(self) -> bool:

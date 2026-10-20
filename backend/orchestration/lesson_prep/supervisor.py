@@ -7,7 +7,9 @@ from langgraph.types import Command
 
 from orchestration.lesson_prep.state import LessonPrepState
 
-MAX_ITERATIONS = 25
+# سقف زيارات المشرف: المسار السليم 13 زيارة، وكل قسم يُعاد مرة واحدة
+# يضيف زيارتين (إعادة التوجيه ثم التقييم) → 32 زيارة في أسوأ الحالات.
+MAX_ITERATIONS = 40
 QUALITY_THRESHOLD = 0.7
 MAX_RETRIES_PER_SECTION = 1
 

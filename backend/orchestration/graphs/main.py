@@ -14,12 +14,19 @@ from orchestration.state import AgentState
 RoleRoute = Literal["teacher", "student"]
 
 
-def checkpoint_config(user_id: str, conversation_id: str) -> dict:
-    """عزل حالة كل محادثة داخل نطاق المستخدم."""
-    scoped_thread_id = json.dumps(
+def scoped_thread_id(user_id: str, conversation_id: str) -> str:
+    """معرّف خيط معزول يجمع بين المستخدم والمحادثة."""
+    return json.dumps(
         [user_id, conversation_id], ensure_ascii=False, separators=(",", ":")
     )
-    return {"configurable": {"thread_id": scoped_thread_id}}
+
+
+def checkpoint_config(user_id: str, conversation_id: str) -> dict:
+    """عزل حالة كل محادثة داخل نطاق المستخدم."""
+    return {
+        "configurable": {"thread_id": scoped_thread_id(user_id, conversation_id)},
+        "recursion_limit": 100,
+    }
 
 
 def route_role(state: AgentState) -> RoleRoute:

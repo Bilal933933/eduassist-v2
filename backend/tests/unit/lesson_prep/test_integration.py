@@ -1,6 +1,7 @@
 """اختبارات تكاملية لعقدة تحضير الدرس الكاملة."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -134,6 +135,116 @@ class TestLessonPrepNodeQualityRetry:
 
         assert "response" in result
         assert "sections" in result
+
+
+    @pytest.mark.asyncio
+    async def test_second_prep_does_not_inherit_previous_sections(self) -> None:
+        """يتحقق من أن التحضير الثاني لا يرث أقسام التحضير الأول."""
+        prompts: list[str] = []
+        counter = {"n": 0}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            prompts.append(task)
+            counter["n"] += 1
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            return f"قسم-{counter['n']:02d}"
+
+        node = create_lesson_prep_node(
+            call_model=call_model,
+            retrieval_service=None,
+        )
+        context = {"subject": "اللغة العربية", "grade": "الثاني المتوسط"}
+
+        first = await node({"messages": ["كان وأخواتها"], "context": context})
+        assert first["sections"], "لم يُنتج التحضير الأول أقساماً"
+
+        await node({
+            "messages": ["كان وأخواتها"],
+            "context": context,
+            "sections": first["sections"],
+            "retried_sections": first["retried_sections"],
+        })
+
+        critic_prompts = [p for p in prompts if "قيّم جودة خطة الدرس" in p]
+        assert len(critic_prompts) == 2
+        first_section = first["sections"]["basic_info"]
+        assert first_section in critic_prompts[0]
+        assert first_section not in critic_prompts[1]
+
+    @pytest.mark.asyncio
+    async def test_second_prep_retries_section_again(self) -> None:
+        """يتحقق من أن إعادة كتابة قسم في التحضير الأول لا تمنعها في الثاني."""
+        prompts: list[str] = []
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            prompts.append(task)
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.3, "section": "lesson_flow"}'
+            return "محتوى تجريبي"
+
+        node = create_lesson_prep_node(
+            call_model=call_model,
+            retrieval_service=None,
+        )
+        context = {"subject": "اللغة العربية", "grade": "الثاني المتوسط"}
+
+        first = await node({"messages": ["كان وأخواتها"], "context": context})
+        assert first["retried_sections"] == ["lesson_flow"]
+
+        prompts.clear()
+        await node({
+            "messages": ["كان وأخواتها"],
+            "context": context,
+            "retried_sections": first["retried_sections"],
+        })
+
+        flow_calls = [p for p in prompts if "اكتب سير درس" in p]
+        assert len(flow_calls) == 2, "لم يُعد الناقد كتابة قسم سير الدرس في التحضير الثاني"
+
+
+class TestLessonPrepNodeIterationBudget:
+    """اختبارات سقف iterations عند طلب الناقد لإعادة كتابة كل الأقسام."""
+
+    @pytest.mark.asyncio
+    async def test_final_plan_survives_retry_of_every_section(self) -> None:
+        """يتحقق من أن الخطة النهائية تُنتج حتى مع إعادة كتابة كل الأقسام."""
+        pending = [
+            "basic_info",
+            "objectives",
+            "prior_knowledge",
+            "materials",
+            "lesson_flow",
+            "assessment",
+            "homework",
+            "differentiation",
+            "notes",
+        ]
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            if "قيّم جودة خطة الدرس" in task:
+                if pending:
+                    section = pending.pop(0)
+                    return json.dumps({"score": 0.3, "section": section})
+                return json.dumps({"score": 0.9, "section": None})
+            return "محتوى تجريبي"
+
+        node = create_lesson_prep_node(
+            call_model=call_model,
+            retrieval_service=None,
+        )
+
+        result = await node({
+            "messages": ["كان وأخواتها"],
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        assert result["response"], "لم تُنتج خطة نهائية رغم اكتمال دورات التقييم"
+        assert pending == [], "لم يطلب الناقد كل الأقسام"
+        assert result["retried_sections"]
 
 
 class TestLessonPrepNodeRetrievalFailure:

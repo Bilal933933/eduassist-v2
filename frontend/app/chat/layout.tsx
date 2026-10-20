@@ -1,17 +1,23 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useMe } from "@/features/auth/hooks/use-auth";
+import { useSidebarStore } from "@/features/chat/stores/sidebar-store";
 import { ConversationList } from "@/features/conversations/components/conversation-list";
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const me = useMe();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const isSidebarOpen = useSidebarStore((state) => state.isOpen);
+  const closeSidebar = useSidebarStore((state) => state.close);
 
   useEffect(() => {
     if (!me.isPending && !me.data) router.replace("/login");
@@ -19,7 +25,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   if (me.isPending) {
     return (
-      <main className="flex min-h-screen items-center justify-center" dir="rtl">
+      <main className="flex min-h-dvh items-center justify-center" dir="rtl">
         <Skeleton className="h-64 w-full max-w-md" />
       </main>
     );
@@ -28,35 +34,38 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   if (!me.data) return null;
 
   return (
-    <main className="flex min-h-screen bg-slate-100" dir="rtl">
+    <main className="flex min-h-dvh bg-slate-100" dir="rtl">
       {/* سطح المكتب: شريط ثابت */}
       <div className="hidden border-l md:block">
-        <ConversationList userName={me.data.full_name} />
+        <ConversationList
+          userName={me.data.full_name}
+          userRole={me.data.role}
+        />
       </div>
-      {/* الجوال: زر قائمة + درج منزلق */}
-      <Button
-        size="icon"
-        variant="outline"
-        className="fixed bottom-6 right-6 z-40 md:hidden"
-        onClick={() => setDrawerOpen((open) => !open)}
-        aria-label={drawerOpen ? "إغلاق القائمة" : "فتح القائمة"}
+      {/* الجوال: درج بمكوّن Sheet يضمن trapping للتركيز وإغلاق بمفتاح Escape */}
+      <Sheet
+        open={isSidebarOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSidebar();
+        }}
       >
-        {drawerOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-      </Button>
-      {drawerOpen && (
-        <div className="fixed inset-0 z-30 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDrawerOpen(false)}
+        <SheetContent
+          side="right"
+          className="w-72 gap-0 p-0 md:hidden"
+          showCloseButton={false}
+        >
+          <SheetTitle className="sr-only">قائمة المحادثات</SheetTitle>
+          <SheetDescription className="sr-only">
+            اختر محادثة لعرضها أو ابدأ محادثة جديدة.
+          </SheetDescription>
+          <ConversationList
+            userName={me.data.full_name}
+            userRole={me.data.role}
+            onSelect={closeSidebar}
+            className="w-full"
           />
-          <div className="absolute inset-y-0 right-0 border-l shadow-xl">
-            <ConversationList
-              userName={me.data.full_name}
-              onSelect={() => setDrawerOpen(false)}
-            />
-          </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
       <div className="flex min-w-0 flex-1 justify-center p-4 sm:p-8">{children}</div>
     </main>
   );
