@@ -55,6 +55,7 @@ class LessonPrepState(TypedDict, total=False):
     subject: str
     grade: str
     topic: str
+    duration_minutes: int
     # وضع التعديل: طلب المعلم والخطة السابقة تُحقنان في موجّه كل قسم.
     request: str
     previous_plan: str

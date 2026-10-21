@@ -115,6 +115,7 @@ def create_basic_info_node(
             subject=state.get("subject") or "غير محدد",
             grade=state.get("grade") or "غير محدد",
             topic=state["topic"],
+            duration=state.get("duration_minutes") or 45,
             rule=FORMAT_RULE,
         )
         return await _generate_section(

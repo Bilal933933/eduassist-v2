@@ -2,7 +2,7 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from orchestration.state.agent import Intent
 
@@ -17,6 +17,12 @@ class InterpretedMessage(BaseModel):
     text: str
     intent: Intent
     properties: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("properties", mode="before")
+    @classmethod
+    def empty_properties(cls, value: Any) -> Any:
+        """غياب الخصائص يعني كائنًا فارغًا لا None."""
+        return {} if value is None else value
 
 
 class Interpretation(BaseModel):

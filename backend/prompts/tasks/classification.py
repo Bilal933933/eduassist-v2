@@ -39,7 +39,7 @@ INTENT_INTERPRETATION_TASK = """أعد كائن JSON واحدًا فقط بال�
 {"message":{"text":"نص رسالة المستخدم كما ورد حرفيًا","intent":"إحدى النوايا المتاحة","properties":{}}}
 
 قواعد properties:
-- lesson_prep: {"topic": "عنوان الدرس أو null", "grade": "الصف أو null"}
+- lesson_prep: {"topic": "عنوان الدرس أو null", "grade": "الصف أو null", "duration_minutes": "المدة بالدقائق كعدد صحيح أو null"}
 - lesson_info: {"topic": "عنوان الدرس أو null"}
 - lesson_refine: {"topic": "عنوان الدرس أو null", "target_sections": ["اسم قسم"] أو ["all"], "change": "الطلب أو null"}
 - بقية النوايا: {}

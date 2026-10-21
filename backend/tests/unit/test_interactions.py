@@ -19,6 +19,7 @@ from orchestration.interactions.slots import (
 )
 from orchestration.nodes.shared import create_classification_node, clarify_node
 from orchestration.nodes.shared.classification import TEACHER_INTENTS
+from orchestration.nodes.teacher.lesson_prep_node import _duration_minutes
 
 
 def test_grade_is_the_only_missing_slot_for_lesson_prep() -> None:
@@ -241,6 +242,30 @@ def test_teacher_graph_stops_at_clarify_when_grade_is_missing() -> None:
     assert result["intent"] == "lesson_prep"
     assert interaction.status == "open"
     assert [question.slot for question in interaction.questions] == ["grade"]
+
+
+def test_duration_defaults_and_accepts_valid_values() -> None:
+    """المدة الصالحة تُحترم، وغيرها يعود إلى 45 دقيقة."""
+    assert _duration_minutes({}) == 45
+    assert _duration_minutes({"duration_minutes": 60}) == 60
+    assert _duration_minutes({"duration_minutes": "30"}) == 30
+    assert _duration_minutes({"duration_minutes": 5}) == 45
+    assert _duration_minutes({"duration_minutes": True}) == 45
+
+
+def test_interpreted_message_coerces_missing_properties() -> None:
+    """غياب properties لا يُفشل التفسير."""
+    from orchestration.interactions.schema import InterpretedMessage
+
+    message = InterpretedMessage.model_validate(
+        {
+            "text": "اشرح Present Simple",
+            "intent": "lesson_prep",
+            "properties": None,
+        }
+    )
+
+    assert message.properties == {}
 
 
 def test_chat_request_accepts_interaction_answer() -> None:

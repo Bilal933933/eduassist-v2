@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from orchestration.lesson_prep.graph import build_lesson_prep_subgraph
 from orchestration.lesson_prep.prompts import REFINE_SCOPE_TASK
@@ -28,6 +29,19 @@ def _parse_refine_targets(raw: str) -> list[str]:
         for value in values
         if isinstance(value, str) and value in SECTION_FIELDS
     ]
+
+
+def _duration_minutes(properties: dict[str, Any]) -> int:
+    """المدة المطلوبة إن كانت رتبة صالحة، وإلا الافتراضي 45 دقيقة."""
+    value = properties.get("duration_minutes")
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value.strip())
+    elif isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        if 15 <= value <= 180:
+            return value
+    return 45
 
 
 def create_lesson_prep_node(
@@ -119,10 +133,11 @@ def create_lesson_prep_node(
                 scope_raw = ""
             targets = _parse_refine_targets(scope_raw)
 
-        input_state: dict[str, str] = {
+        input_state: dict[str, Any] = {
             "subject": context.get("subject", ""),
             "grade": str(properties.get("grade") or context.get("grade") or ""),
             "topic": topic,
+            "duration_minutes": _duration_minutes(properties),
         }
         if is_refine:
             # الخطة السابقة مرجع للتعديل لا بذرة أقسام مستهدفة.
