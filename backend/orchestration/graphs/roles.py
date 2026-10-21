@@ -18,6 +18,7 @@ from orchestration.nodes.shared import (
 from orchestration.nodes.shared.classification import STUDENT_INTENTS, TEACHER_INTENTS
 from orchestration.nodes.student import create_generation_node
 from orchestration.nodes.teacher import (
+    create_lesson_info_node,
     create_lesson_prep_node,
     create_teacher_generation_node,
 )
@@ -77,6 +78,15 @@ def build_role_graph(
         )
         targets.append("lesson_prep")
 
+        builder.add_node(
+            "lesson_info",
+            create_lesson_info_node(
+                call_model=call_model,
+                retrieval_service=retrieval_service,
+            ),
+        )
+        targets.append("lesson_info")
+
     builder.add_edge(START, "classify")
     builder.add_conditional_edges("classify", _route_after_classify, targets)
     for node in ("greeting", "quick_reply", "general", "abuse", "generation"):
@@ -85,5 +95,6 @@ def build_role_graph(
     builder.add_edge("recall", "generation")
     if is_teacher:
         builder.add_edge("lesson_prep", END)
+        builder.add_edge("lesson_info", END)
 
     return builder.compile()

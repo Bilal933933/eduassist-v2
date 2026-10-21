@@ -3,13 +3,14 @@
 from dataclasses import dataclass
 
 from prompts.roles import UserRole
-from prompts.system.academic import SYSTEM_PROMPT
+from prompts.system.academic import LESSON_INFO_SYSTEM_PROMPT, SYSTEM_PROMPT
 from prompts.system.conversational import ABUSE_SYSTEM_PROMPT, GENERAL_SYSTEM_PROMPT
 from prompts.tasks.abuse import ABUSE_ESCALATION_TASK, ABUSE_RESPONSE_TASK
 from prompts.tasks.classification import INTENT_CLASSIFICATION_TASK, INTENT_HINT
 from prompts.tasks.general import GENERAL_RESPONSE_TASK, TEACHER_GENERAL_RESPONSE_TASK
 from prompts.tasks.generation import GENERATION_TASK
 from prompts.tasks.greeting import GREETING_RESPONSE_TASK, TEACHER_GREETING_RESPONSE_TASK
+from prompts.tasks.lesson_info import LESSON_INFO_TASK
 from prompts.tasks.summarize import RECALL_TASK
 
 CLASSIFICATION_TASK = f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}"
@@ -66,6 +67,14 @@ _PROMPTS: dict[str, dict[UserRole, PromptSpec]] = {
             SYSTEM_PROMPT, GENERATION_TASK, "educational_assistant", 0.2
         ),
         "teacher": PromptSpec(SYSTEM_PROMPT, GENERATION_TASK, "teacher_assistant", 0.2),
+    },
+    "lesson_info": {
+        "teacher": PromptSpec(
+            LESSON_INFO_SYSTEM_PROMPT,
+            LESSON_INFO_TASK,
+            "teacher_assistant",
+            0.2,
+        )
     },
 }
 

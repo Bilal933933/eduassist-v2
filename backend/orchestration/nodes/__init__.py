@@ -12,7 +12,10 @@ from orchestration.nodes.shared import (
     quick_reply_node,
     route_intent,
 )
-from orchestration.nodes.teacher import create_lesson_prep_node
+from orchestration.nodes.teacher import (
+    create_lesson_info_node,
+    create_lesson_prep_node,
+)
 
 
 __all__ = [
@@ -23,6 +26,7 @@ __all__ = [
     "create_general_node",
     "create_greeting_node",
     "create_summarize_node",
+    "create_lesson_info_node",
     "create_lesson_prep_node",
     "quick_reply_node",
     "route_intent",

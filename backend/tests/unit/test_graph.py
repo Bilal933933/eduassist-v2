@@ -627,3 +627,77 @@ def test_checkpoint_accumulates_messages_without_subgraph_duplication() -> None:
     result = asyncio.run(scenario())
     assert result["messages"] == ["الأولى", "الثانية"]
     assert result["user_role"] == "student"
+
+
+def test_lesson_info_routes_to_teacher_node() -> None:
+    """نية lesson_info تصل لعقدة الملف وتعيد عنوان الدرس للمتابعة."""
+    prompts: list[str] = []
+
+    class FakeRetrieval:
+        async def search_lesson_sources(
+            self, query: str, subject: str | None = None
+        ) -> list[dict]:
+            _ = query, subject
+            return [
+                {
+                    "kind": "curriculum",
+                    "title": "كان وأخواتها",
+                    "text": "كان وأخواتها أفعال ناسخة.",
+                    "url": "",
+                    "grades": ["أول إعدادي"],
+                    "chapter": "كان وأخواتها",
+                    "source": "نحو.md",
+                    "truncated": False,
+                }
+            ]
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        prompts.append(message)
+        return "## كان وأخواتها\n[1] تعريف."
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt
+        assert "lesson_info" in choices
+        return "lesson_info"
+
+    result = asyncio.run(
+        build_graph(
+            call_model=fake_generate,
+            classify_intent=fake_classify,
+            retrieval_service=FakeRetrieval(),
+        ).ainvoke(
+            {
+                "messages": ["أعطني كل المعلومات عن درس كان وأخواتها"],
+                "user_id": "user-1",
+                "user_role": "teacher",
+                "context": {"subject": "نحو"},
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            checkpoint_config("user-1", "lesson-info"),
+        )
+    )
+
+    assert result["intent"] == "lesson_info"
+    assert result["metadata"]["nodes_path"] == ["classify", "lesson_info"]
+    assert result["lesson_topic"] == "كان وأخواتها"
+    assert "كان وأخواتها أفعال ناسخة." in prompts[0]
+
+
+def test_student_classifier_rejects_lesson_info() -> None:
+    """lesson_info نية معلم فقط، وأي قيمة غير مسموحة ترجع generation."""
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "lesson_info"
+
+    node = create_classification_node(fake_classify, STUDENT_INTENTS)
+    result = asyncio.run(
+        node({"messages": ["كل المعلومات عن الدرس"], "user_role": "student"})
+    )
+
+    assert result["intent"] == "generation"

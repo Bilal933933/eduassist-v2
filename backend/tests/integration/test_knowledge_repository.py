@@ -120,7 +120,94 @@ def test_search_similar_without_filters() -> None:
     asyncio.run(_run_test(scenario))
 
 
-def test_add_chunks_batch() -> None:
+def test_list_by_scope_returns_all_lesson_chunks() -> None:
+    """جلب نطاق الدرس يعيد كل مقاطعه مرتبة، لا الأقرب دلاليًا فقط."""
+
+    async def scenario(repo: KnowledgeRepository, session) -> None:
+        for index in range(3):
+            await repo.add_chunk(
+                content=f"جزء {index} من درس كان وأخواتها",
+                embedding=_vec([0.0, 1.0, 0.0]),
+                subject="نحو",
+                grade="أول إعدادي",
+                chapter="كان وأخواتها",
+                source="كتاب النحو.md",
+            )
+        await repo.add_chunk(
+            content="درس آخر",
+            embedding=_vec([1.0, 0.0, 0.0]),
+            subject="نحو",
+            grade="أول إعدادي",
+            chapter="درس آخر",
+            source="كتاب النحو.md",
+        )
+
+        rows = await repo.list_by_scope(
+            source="كتاب النحو.md",
+            chapter="كان وأخواتها",
+            grade="أول إعدادي",
+        )
+
+        assert [row["content"] for row in rows] == [
+            "جزء 0 من درس كان وأخواتها",
+            "جزء 1 من درس كان وأخواتها",
+            "جزء 2 من درس كان وأخواتها",
+        ]
+
+    asyncio.run(_run_test(scenario))
+
+
+def test_search_lexical_matches_chapter_and_filters_subject() -> None:
+    """البحث النصي يلتقط عنوان الدرس ويحترم المادة."""
+
+    async def scenario(repo: KnowledgeRepository, session) -> None:
+        await repo.add_chunk(
+            content="محتوى بعيد دلاليًا",
+            embedding=_vec([0.0, 0.0, 1.0]),
+            subject="نحو",
+            chapter="كان وأخواتها",
+            source="نحو.md",
+        )
+        await repo.add_chunk(
+            content="محتوى مادة أخرى",
+            embedding=_vec([0.0, 0.0, 1.0]),
+            subject="صرف",
+            chapter="كان وأخواتها",
+            source="صرف.md",
+        )
+
+        rows = await repo.search_lexical("كان وأخواتها", subject="نحو")
+
+        assert [row["source"] for row in rows] == ["نحو.md"]
+
+    asyncio.run(_run_test(scenario))
+
+
+def test_list_distinct_grades_respects_subject() -> None:
+    """قائمة الصفوف تستبعد الفارغ وتفلتر بالمادة عند تحديدها."""
+
+    async def scenario(repo: KnowledgeRepository, session) -> None:
+        await repo.add_chunk(
+            content="أ", embedding=_vec([1.0]), subject="نحو", grade="أول إعدادي"
+        )
+        await repo.add_chunk(
+            content="ب", embedding=_vec([1.0]), subject="نحو", grade="ثاني إعدادي"
+        )
+        await repo.add_chunk(
+            content="ج", embedding=_vec([1.0]), subject="نحو", grade="أول إعدادي"
+        )
+        await repo.add_chunk(
+            content="د", embedding=_vec([1.0]), subject="صرف", grade="ثالث إعدادي"
+        )
+        await repo.add_chunk(
+            content="ه", embedding=_vec([1.0]), subject="نحو"
+        )
+
+        grades = await repo.list_distinct_grades(subject="نحو")
+
+        assert grades == ["أول إعدادي", "ثاني إعدادي"]
+
+    asyncio.run(_run_test(scenario))
     """الإرسال الدفعي يدرج عدة قطع بكفاءة."""
 
     async def scenario(repo: KnowledgeRepository, session) -> None:

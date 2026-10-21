@@ -14,6 +14,7 @@ Intent = Literal[
     "recall",
     "lesson_prep",
     "lesson_refine",
+    "lesson_info",
 ]
 
 

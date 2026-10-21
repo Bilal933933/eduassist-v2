@@ -5,6 +5,11 @@ from prompts.tasks.classification import INTENT_CLASSIFICATION_TASK, INTENT_HINT
 from prompts.tasks.general import GENERAL_RESPONSE_TASK, TEACHER_GENERAL_RESPONSE_TASK
 from prompts.tasks.generation import GENERATION_TASK
 from prompts.tasks.greeting import GREETING_RESPONSE_TASK, TEACHER_GREETING_RESPONSE_TASK
+from prompts.tasks.lesson_info import (
+    LESSON_INFO_COMPOSE_TASK,
+    LESSON_INFO_EXTRACT_TASK,
+    LESSON_INFO_TASK,
+)
 from prompts.tasks.summarize import RECALL_TASK
 
 __all__ = [
@@ -15,6 +20,9 @@ __all__ = [
     "GREETING_RESPONSE_TASK",
     "INTENT_CLASSIFICATION_TASK",
     "INTENT_HINT",
+    "LESSON_INFO_COMPOSE_TASK",
+    "LESSON_INFO_EXTRACT_TASK",
+    "LESSON_INFO_TASK",
     "RECALL_TASK",
     "TEACHER_GENERAL_RESPONSE_TASK",
     "TEACHER_GREETING_RESPONSE_TASK",
