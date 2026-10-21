@@ -8,6 +8,7 @@ import pytest
 
 import adapters.llm.gemini as gemini_module
 from adapters.llm.gemini import GeminiClient
+from orchestration.interactions.schema import Interpretation
 
 
 def test_gemini_generates_with_system_prompt(monkeypatch) -> None:
@@ -48,6 +49,23 @@ def test_gemini_generates_enum_choice(monkeypatch) -> None:
         "greeting",
         "generation",
     }
+
+
+def test_gemini_generates_structured_json(monkeypatch) -> None:
+    """التمثيل المنظم يُطلب بمخطط Pydantic و JSON صريح."""
+    raw = '{"message":{"text":"x","intent":"general","properties":{}}}'
+    generate_content = AsyncMock(return_value=SimpleNamespace(text=raw))
+    fake_client = Mock()
+    fake_client.aio.models.generate_content = generate_content
+    monkeypatch.setattr(gemini_module.genai, "Client", lambda api_key: fake_client)
+
+    client = GeminiClient("test-key", "test-model")
+    result = asyncio.run(client.generate_structured("prompt", Interpretation))
+
+    assert result == raw
+    config = generate_content.await_args.kwargs["config"]
+    assert config.response_mime_type == "application/json"
+    assert config.response_schema is Interpretation
 
 
 def test_gemini_checks_api_key_only_when_model_is_called(monkeypatch) -> None:

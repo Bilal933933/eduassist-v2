@@ -265,7 +265,7 @@ def test_interpreted_message_coerces_missing_properties() -> None:
         }
     )
 
-    assert message.properties == {}
+    assert message.properties.model_dump(exclude_none=True) == {}
 
 
 def test_chat_request_accepts_interaction_answer() -> None:

@@ -126,7 +126,7 @@ def create_classification_node(
                 structured_failed = True
             else:
                 intent = interpreted.intent
-                properties = dict(interpreted.properties)
+                properties = interpreted.properties.model_dump(exclude_none=True)
                 properties_ready = True
 
         if intent is None:

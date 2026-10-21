@@ -9,6 +9,18 @@ from orchestration.state.agent import Intent
 InteractionStatus = Literal["open", "answered", "dismissed", "expired"]
 
 
+class MessageProperties(BaseModel):
+    """الخصائص المعروفة التي يستخرجها المفسر من رسالة المعلم."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    topic: str | None = None
+    grade: str | None = None
+    duration_minutes: int | None = None
+    target_sections: list[str] | None = None
+    change: str | None = None
+
+
 class InterpretedMessage(BaseModel):
     """الرسالة الأصلية مع النية والخصائص المستخرجة."""
 
@@ -16,7 +28,7 @@ class InterpretedMessage(BaseModel):
 
     text: str
     intent: Intent
-    properties: dict[str, Any] = Field(default_factory=dict)
+    properties: MessageProperties = Field(default_factory=MessageProperties)
 
     @field_validator("properties", mode="before")
     @classmethod
