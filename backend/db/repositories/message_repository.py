@@ -20,6 +20,7 @@ class MessageRepository:
         sender: str,
         content: str,
         metadata: dict | None = None,
+        interaction: dict | None = None,
     ) -> Message:
         """إضافة رسالة مع مالك المحادثة وميتا داتا مصدر الرد."""
         message = Message(
@@ -28,10 +29,29 @@ class MessageRepository:
             sender=sender,
             content=content,
             metadata_=metadata,
+            interaction_=interaction,
         )
         self._session.add(message)
         await self._session.flush()
         return message
+
+    async def get_owned(
+        self,
+        message_id: UUID,
+        conversation_id: UUID,
+        user_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Message | None:
+        """جلب رسالة مملوكة، مع قفل الصف عند تعديل بطاقتها."""
+        statement = select(Message).where(
+            Message.id == message_id,
+            Message.conversation_id == conversation_id,
+            Message.user_id == user_id,
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return await self._session.scalar(statement)
 
     async def list_for_conversation(
         self,

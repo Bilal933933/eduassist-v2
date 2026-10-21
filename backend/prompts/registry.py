@@ -6,14 +6,21 @@ from prompts.roles import UserRole
 from prompts.system.academic import LESSON_INFO_SYSTEM_PROMPT, SYSTEM_PROMPT
 from prompts.system.conversational import ABUSE_SYSTEM_PROMPT, GENERAL_SYSTEM_PROMPT
 from prompts.tasks.abuse import ABUSE_ESCALATION_TASK, ABUSE_RESPONSE_TASK
-from prompts.tasks.classification import INTENT_CLASSIFICATION_TASK, INTENT_HINT
+from prompts.tasks.classification import (
+    INTENT_CLASSIFICATION_TASK,
+    INTENT_HINT,
+    INTENT_INTERPRETATION_TASK,
+)
 from prompts.tasks.general import GENERAL_RESPONSE_TASK, TEACHER_GENERAL_RESPONSE_TASK
 from prompts.tasks.generation import GENERATION_TASK
 from prompts.tasks.greeting import GREETING_RESPONSE_TASK, TEACHER_GREETING_RESPONSE_TASK
 from prompts.tasks.lesson_info import LESSON_INFO_TASK
 from prompts.tasks.summarize import RECALL_TASK
 
-CLASSIFICATION_TASK = f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}"
+CLASSIFICATION_TASK = (
+    f"{INTENT_CLASSIFICATION_TASK}\n{INTENT_HINT}\n"
+    f"{INTENT_INTERPRETATION_TASK}"
+)
 ABUSE_TASK = f"{ABUSE_RESPONSE_TASK}\n{ABUSE_ESCALATION_TASK}"
 
 

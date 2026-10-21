@@ -17,12 +17,20 @@ from db.repositories import (
 )
 from db.session import SessionFactory
 from graph import checkpoint_config, scoped_thread_id
+from orchestration.interactions import (
+    Interaction,
+    answers_as_message,
+    merge_answers,
+)
 from realtime.chat_server import chat_server
 from services.chat_runs import active_chat_runs
 from services.errors import (
     ChatBusyError,
     ConversationNotFoundError,
     EventConnectionRequiredError,
+    InteractionAnswersInvalidError,
+    InteractionClosedError,
+    InteractionNotFoundError,
 )
 from shared.context_builder import build_classifier_view, build_generator_view
 
@@ -55,6 +63,7 @@ class AcceptedChat:
     message: str
     user_role: str
     context: dict[str, Any]
+    run: bool = True
 
 
 def build_teacher_brief(profile: TeacherProfile | None) -> str:
@@ -67,12 +76,59 @@ def build_teacher_brief(profile: TeacherProfile | None) -> str:
     )[:200]
 
 
+async def _load_open_interaction(
+    messages: MessageRepository,
+    interaction_id: UUID,
+    conversation_id: UUID,
+    user_id: UUID,
+) -> tuple[object, Interaction]:
+    """جلب بطاقة مفتوحة مملوكة مع قفل الصف لمنع الإجابة المزدوجة."""
+    row = await messages.get_owned(
+        interaction_id,
+        conversation_id,
+        user_id,
+        for_update=True,
+    )
+    if row is None or row.sender != "assistant" or not isinstance(
+        row.interaction_, dict
+    ):
+        raise InteractionNotFoundError
+    try:
+        interaction = Interaction.model_validate(row.interaction_)
+    except ValueError:
+        raise InteractionNotFoundError from None
+    if interaction.status != "open":
+        raise InteractionClosedError
+    return row, interaction
+
+
+def _resume_payload(
+    interaction: Interaction,
+    answers: dict[str, str],
+) -> dict[str, Any]:
+    """دمج إجابات البطاقة مع خصائصها الأصلية لاستئناف الطلب."""
+    try:
+        merged = merge_answers(interaction.questions, answers)
+    except ValueError:
+        raise InteractionAnswersInvalidError from None
+    properties = {**interaction.properties, **merged}
+    return {
+        "intent": interaction.intent,
+        "properties": properties,
+        "answers": merged,
+        "message": answers_as_message(interaction.questions, merged),
+    }
+
+
 async def accept_chat(
     session: AsyncSession,
     user_id: UUID,
     conversation_id: UUID,
     message: str,
     user_role: str = "student",
+    interaction_id: UUID | None = None,
+    answers: dict[str, str] | None = None,
+    action: str = "send",
 ) -> AcceptedChat:
     """التحقق من الشروط وحفظ رسالة المستخدم وحجز التشغيل (المرحلة المتزامنة)."""
     if user_role not in ("teacher", "student"):
@@ -89,10 +145,33 @@ async def accept_chat(
     if conversation is None:
         raise ConversationNotFoundError
 
+    messages = MessageRepository(session)
+    if action == "dismiss":
+        if interaction_id is None:
+            raise InteractionNotFoundError
+        row, interaction = await _load_open_interaction(
+            messages,
+            interaction_id,
+            conversation_id,
+            user_id,
+        )
+        row.interaction_ = interaction.model_copy(
+            update={"status": "dismissed"}
+        ).model_dump(mode="json")
+        conversation.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+        return AcceptedChat(
+            user_id,
+            conversation_id,
+            "",
+            user_role,
+            {},
+            run=False,
+        )
+
     if not active_chat_runs.try_begin(owner_key, conversation_key):
         raise ChatBusyError
     try:
-        messages = MessageRepository(session)
         prior_rows = await messages.list_recent(conversation_id, user_id)
         generator_view = build_generator_view(prior_rows)
         context: dict[str, Any] = {
@@ -108,14 +187,45 @@ async def accept_chat(
             teacher_brief = build_teacher_brief(profile)
             if teacher_brief:
                 context["teacher_brief"] = teacher_brief
-        await messages.add(conversation_id, user_id, "user", message)
+
+        display_message = message
+        if interaction_id is not None:
+            row, interaction = await _load_open_interaction(
+                messages,
+                interaction_id,
+                conversation_id,
+                user_id,
+            )
+            resume = _resume_payload(interaction, answers or {})
+            context["interaction_resume"] = resume
+            row.interaction_ = Interaction(
+                status="answered",
+                intent=interaction.intent,
+                properties=resume["properties"],
+                questions=interaction.questions,
+                answers=resume["answers"],
+            ).model_dump(mode="json")
+            display_message = message.strip() or str(resume["message"])
+
+        await messages.add(
+            conversation_id,
+            user_id,
+            "user",
+            display_message,
+        )
         conversation.updated_at = datetime.now(timezone.utc)
         await session.commit()
     except BaseException:
         # فشل القبول لا يجوز أن يترك المحادثة محجوزة.
         active_chat_runs.end(owner_key, conversation_key)
         raise
-    return AcceptedChat(user_id, conversation_id, message, user_role, context)
+    return AcceptedChat(
+        user_id,
+        conversation_id,
+        display_message,
+        user_role,
+        context,
+    )
 
 
 async def run_chat(
@@ -126,9 +236,11 @@ async def run_chat(
     """تشغيل الرسم وحفظ الرد وإصدار الأحداث (المرحلة الخلفية، لا ترمي أبدًا)."""
     owner_key = str(accepted.user_id)
     conversation_key = str(accepted.conversation_id)
+    if not accepted.run:
+        return
     try:
         await chat_server.send_started(owner_key, conversation_key)
-        response, metadata = await _collect_response(graph, accepted)
+        response, metadata, interaction = await _collect_response(graph, accepted)
         if not response or not response.strip():
             logger.error("انتهى الرسم دون رد للمحادثة %s", conversation_key)
             await _send_failed(owner_key, conversation_key)
@@ -136,7 +248,11 @@ async def run_chat(
         # الميتا ديتا لا تُنشر إلا في وضع التصحيح، ولا تُنشر فارغة.
         debug_metadata = metadata if settings.DEBUG_METADATA and metadata else None
         await _save_assistant_reply(
-            session_factory, accepted, response, debug_metadata
+            session_factory,
+            accepted,
+            response,
+            debug_metadata,
+            interaction,
         )
         await prune_thread_checkpoints(
             getattr(graph, "checkpointer", None),
@@ -155,8 +271,8 @@ async def run_chat(
 
 async def _collect_response(
     graph: Any, accepted: AcceptedChat
-) -> tuple[str | None, dict[str, Any]]:
-    """بث أحداث الرسم واستخراج آخر رد نصي مع ميتا داتا مصدره."""
+) -> tuple[str | None, dict[str, Any], dict[str, Any] | None]:
+    """بث أحداث الرسم واستخراج الرد وميتا داتاه وبطاقة أسئلته."""
     owner_key = str(accepted.user_id)
     event_stream = graph.astream_events(
         {
@@ -173,6 +289,9 @@ async def _collect_response(
             # حقول خرج الدور السابق: تُصفَّر وإلا تراكمت في نقطة التفتيش
             # أو أوحى استرجاع دور قديم بأن الدور الجديد استخدمه.
             "sections": {},
+            "properties": {},
+            "properties_ready": False,
+            "interaction": None,
             "retried_sections": [],
             "failed_sections": [],
             "retrieved_chunks": [],
@@ -182,8 +301,10 @@ async def _collect_response(
     )
     response: str | None = None
     metadata: dict[str, Any] = {}
+    interaction: dict[str, Any] | None = None
     role_response: str | None = None
     role_metadata: dict[str, Any] = {}
+    role_interaction: dict[str, Any] | None = None
     async for event in event_stream:
         # كل حدث يثبت أن التشغيل ما زال حيًا: التحضير قد يتجاوز TTL بكثير.
         active_chat_runs.touch(owner_key, str(accepted.conversation_id))
@@ -196,13 +317,16 @@ async def _collect_response(
             response = output["response"]
             if isinstance(output.get("metadata"), dict):
                 metadata = output["metadata"]
+            if isinstance(output.get("interaction"), dict):
+                interaction = output["interaction"]
             # نتيجة عقدة الدور أرجح من أي عقدة فرعية تنتهي بعدها.
             if event.get("name") in ROLE_NODE_NAMES:
                 role_response = response
                 role_metadata = dict(metadata)
+                role_interaction = interaction
     if role_response is not None:
-        return role_response, role_metadata
-    return response, metadata
+        return role_response, role_metadata, role_interaction
+    return response, metadata, interaction
 
 
 async def _save_assistant_reply(
@@ -210,6 +334,7 @@ async def _save_assistant_reply(
     accepted: AcceptedChat,
     response: str,
     metadata: dict[str, Any] | None = None,
+    interaction: dict[str, Any] | None = None,
 ) -> None:
     """حفظ رد المساعد بجلسة مستقلة عن جلسة الطلب المنتهية."""
     async with session_factory() as session:
@@ -219,12 +344,15 @@ async def _save_assistant_reply(
         )
         if conversation is None:
             raise ConversationNotFoundError
+        kwargs: dict[str, Any] = {"metadata": metadata}
+        if interaction is not None:
+            kwargs["interaction"] = interaction
         await MessageRepository(session).add(
             accepted.conversation_id,
             accepted.user_id,
             "assistant",
             response,
-            metadata=metadata,
+            **kwargs,
         )
         conversation.updated_at = datetime.now(timezone.utc)
         await session.commit()

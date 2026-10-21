@@ -40,6 +40,9 @@ class AgentState(TypedDict, total=False):
     # مجمع الإضافة يحفظ تاريخ المحادثة عبر نقطة التفتيش.
     messages: Annotated[list[str], operator.add]
     intent: Intent
+    properties: dict[str, Any]
+    properties_ready: bool
+    interaction: dict[str, Any]
     response: str
     user_id: str
     user_role: Literal["teacher", "student"]
@@ -62,6 +65,8 @@ class AgentOutput(TypedDict, total=False):
     """حقول الرسم الفرعي التي تعود للرسم الأب دون تكرار الرسائل."""
 
     intent: Intent
+    properties: dict[str, Any]
+    interaction: dict[str, Any]
     response: str
     task: str
     summary: str

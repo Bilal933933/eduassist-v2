@@ -56,13 +56,17 @@ async def chat(
         payload.conversation_id,
         payload.message,
         user.role,
+        interaction_id=payload.interaction_id,
+        answers=payload.answers,
+        action=payload.action,
     )
-    background_tasks.add_task(
-        run_chat,
-        http_request.app.state.graph,
-        session_factory,
-        accepted,
-    )
+    if accepted.run:
+        background_tasks.add_task(
+            run_chat,
+            http_request.app.state.graph,
+            session_factory,
+            accepted,
+        )
     result = ChatAccepted(
         conversation_id=payload.conversation_id, accepted=True
     ).model_dump(mode="json")

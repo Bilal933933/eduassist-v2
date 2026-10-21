@@ -43,17 +43,22 @@ def build_graph(
     classify_intent: Callable[
         [str, tuple[str, ...]], Awaitable[str]
     ],
+    interpret_intent: (
+        Callable[[str, tuple[str, ...]], Awaitable[dict | str]] | None
+    ) = None,
     retrieval_service: Any | None = None,
 ):
     """تجميع الموجه مع الجرافين الفرعيين ونقطة التفتيش المحقونة."""
     teacher = build_teacher_graph(
         call_model=call_model,
         classify_intent=classify_intent,
+        interpret_intent=interpret_intent,
         retrieval_service=retrieval_service,
     )
     student = build_student_graph(
         call_model=call_model,
         classify_intent=classify_intent,
+        interpret_intent=interpret_intent,
         retrieval_service=retrieval_service,
     )
     builder = StateGraph(AgentState)

@@ -15,6 +15,7 @@ from config.settings import settings
 from db.checkpointer import open_checkpointer
 from db.session import open_session_factory
 from graph import build_graph
+from orchestration.interactions.schema import Interpretation
 from realtime.routes import router as events_router
 from retrieval.service import RetrievalService
 
@@ -38,10 +39,18 @@ async def lifespan(app: FastAPI):
         open_session_factory(settings.DATABASE_URL) as session_factory,
     ):
         try:
+            async def interpret_intent(
+                prompt: str,
+                choices: tuple[str, ...],
+            ) -> str:
+                _ = choices
+                return await gemini.generate_structured(prompt, Interpretation)
+
             app.state.graph = build_graph(
                 checkpointer,
                 call_model=gemini.generate,
                 classify_intent=gemini.generate_enum,
+                interpret_intent=interpret_intent,
                 retrieval_service=RetrievalService(
                     session_factory=session_factory,
                     embed_fn=gemini.embed,

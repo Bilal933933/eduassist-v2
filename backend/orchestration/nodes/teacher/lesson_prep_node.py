@@ -43,6 +43,7 @@ def create_lesson_prep_node(
     async def lesson_prep_node(state: AgentState) -> dict:
         context = state.get("context", {})
         message = state["messages"][-1]
+        properties = state.get("properties") or {}
         is_refine = state.get("intent") == "lesson_refine"
         previous_plan = state.get("lesson_plan", "")
         previous_sections = state.get("lesson_sections") or {}
@@ -74,13 +75,30 @@ def create_lesson_prep_node(
         # في الحالة الأم للسجل فقط، وبذرها يخلط محتوى دورين في تقييم الناقد.
         # في التعديل يُقدَّم موضوع الخطة السابقة، ولا يُستخدم نص الطلب عنوانًا.
         if is_refine:
-            topic = state.get("lesson_topic") or context.get("topic") or ""
+            topic = (
+                str(properties.get("topic") or "")
+                or state.get("lesson_topic")
+                or context.get("topic")
+                or ""
+            )
         else:
-            topic = context.get("topic") or message
+            topic = (
+                str(properties.get("topic") or "")
+                or context.get("topic")
+                or message
+            )
 
         # النطاق ديناميكي: النموذج يحدد الأقسام التي يمسّها الطلب، والباقي يبقى.
         targets: list[str] = []
-        if is_refine and previous_sections:
+        structured_targets = properties.get("target_sections")
+        if is_refine and isinstance(structured_targets, list):
+            selected = [
+                value
+                for value in structured_targets
+                if isinstance(value, str) and value in SECTION_FIELDS
+            ]
+            targets = [] if "all" in structured_targets else selected
+        elif is_refine and previous_sections:
             try:
                 scope_raw = await call_model(
                     REFINE_SCOPE_TASK.format(
@@ -103,7 +121,7 @@ def create_lesson_prep_node(
 
         input_state: dict[str, str] = {
             "subject": context.get("subject", ""),
-            "grade": context.get("grade", ""),
+            "grade": str(properties.get("grade") or context.get("grade") or ""),
             "topic": topic,
         }
         if is_refine:

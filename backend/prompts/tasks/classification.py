@@ -34,3 +34,19 @@ INTENT_HINT = """الرد السريع quick_reply للشكر والتأكيد �
 وسؤال عما دار سابقًا recall، والإساءة المتكررة abuse،
 وطلب تحضير درس جديد lesson_prep، وتعديل خطة سبق تحضيرها lesson_refine،
 وطلب جمع كل معلومات درس محدد lesson_info."""
+
+INTENT_INTERPRETATION_TASK = """أعد كائن JSON واحدًا فقط بالشكل:
+{"message":{"text":"نص رسالة المستخدم كما ورد حرفيًا","intent":"إحدى النوايا المتاحة","properties":{}}}
+
+قواعد properties:
+- lesson_prep: {"topic": "عنوان الدرس أو null", "grade": "الصف أو null"}
+- lesson_info: {"topic": "عنوان الدرس أو null"}
+- lesson_refine: {"topic": "عنوان الدرس أو null", "target_sections": ["اسم قسم"] أو ["all"], "change": "الطلب أو null"}
+- بقية النوايا: {}
+
+استخدم أسماء الأقسام هذه فقط في target_sections:
+basic_info, objectives, prior_knowledge, materials, lesson_flow, assessment, homework, differentiation, notes.
+إن كان الطلب عامًا للخطة كلها فاستخدم ["all"].
+لا تخترع قيمة غير موجودة في الرسالة أو السياق، واستخدم null عند الغياب.
+لا تضف مفاتيح خارج properties، ولا تغيّر نص text."""
+

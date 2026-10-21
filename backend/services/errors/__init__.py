@@ -19,6 +19,9 @@ from services.errors.conversations import (
     ChatBusyError,
     ConversationNotFoundError,
     EventConnectionRequiredError,
+    InteractionAnswersInvalidError,
+    InteractionClosedError,
+    InteractionNotFoundError,
 )
 from services.errors.profile import TeacherProfileForbiddenError
 from services.errors.request import (
@@ -37,6 +40,9 @@ __all__ = [
     "ConversationNotFoundError",
     "EmailAlreadyExistsError",
     "EventConnectionRequiredError",
+    "InteractionAnswersInvalidError",
+    "InteractionClosedError",
+    "InteractionNotFoundError",
     "InvalidCredentialsError",
     "InvalidRoleError",
     "InvalidCursorError",
@@ -56,6 +62,9 @@ ALL_ERRORS: tuple[type[AppError], ...] = (
     ConversationNotFoundError,
     EmailAlreadyExistsError,
     EventConnectionRequiredError,
+    InteractionAnswersInvalidError,
+    InteractionClosedError,
+    InteractionNotFoundError,
     InvalidCredentialsError,
     InvalidCursorError,
     InvalidRoleError,

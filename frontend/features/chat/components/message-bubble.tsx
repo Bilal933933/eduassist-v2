@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import type { ChatMessage } from "@/lib/api";
+import { QuestionCard } from "@/features/chat/components/question-card";
 import { ResponseMetadata } from "@/features/chat/components/response-metadata";
 import { RichText } from "@/features/chat/components/rich-text";
 
@@ -12,7 +13,23 @@ function formatTime(value: string) {
   });
 }
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
+type MessageBubbleProps = {
+  message: ChatMessage;
+  isBusy?: boolean;
+  onAnswer?: (
+    interactionId: string,
+    answers: Record<string, string>,
+    message: string,
+  ) => Promise<void>;
+  onDismiss?: (interactionId: string) => Promise<void>;
+};
+
+export function MessageBubble({
+  message,
+  isBusy = false,
+  onAnswer,
+  onDismiss,
+}: MessageBubbleProps) {
   const isUser = message.sender === "user";
   return (
     <div className="my-6 flex w-full flex-col gap-4">
@@ -51,6 +68,18 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           </div>
         </div>
       </div>
+
+      {!isUser && message.interaction && onAnswer && onDismiss && (
+        <div className="flex w-full justify-start pl-11">
+          <QuestionCard
+            interactionId={message.id}
+            interaction={message.interaction}
+            disabled={isBusy}
+            onAnswer={onAnswer}
+            onDismiss={onDismiss}
+          />
+        </div>
+      )}
 
       {/* عرض الميتا داتا في سطر مستقل تماماً أسفل فقاعة الرد */}
       {!isUser && message.metadata && (

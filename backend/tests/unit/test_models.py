@@ -57,6 +57,7 @@ def test_message_has_required_fields() -> None:
         "sender",
         "content",
         "metadata",
+        "interaction",
         "sequence_number",
         "created_at",
     }

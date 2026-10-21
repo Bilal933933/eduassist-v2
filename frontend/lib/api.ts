@@ -45,6 +45,27 @@ export type Conversation = {
   updated_at: string;
 };
 
+export type InteractionOption = {
+  label: string;
+  value: string;
+};
+
+export type InteractionQuestion = {
+  slot: string;
+  prompt: string;
+  options: InteractionOption[];
+  allow_custom: boolean;
+  required: boolean;
+};
+
+export type Interaction = {
+  status: "open" | "answered" | "dismissed" | "expired";
+  intent: string;
+  properties: Record<string, unknown>;
+  questions: InteractionQuestion[];
+  answers: Record<string, string> | null;
+};
+
 export type ChatMessage = {
   id: string;
   conversation_id: string;
@@ -54,6 +75,7 @@ export type ChatMessage = {
   sequence_number: number;
   created_at: string;
   metadata?: Record<string, unknown> | null;
+  interaction?: Interaction | null;
 };
 
 export type Page<T> = {
@@ -148,6 +170,32 @@ export function sendMessageRequest(conversationId: string, message: string) {
   return post<{ conversation_id: string; accepted: boolean }>("/api/chat", {
     conversation_id: conversationId,
     message,
+  });
+}
+
+export function answerInteractionRequest(
+  conversationId: string,
+  interactionId: string,
+  answers: Record<string, string>,
+  message: string,
+) {
+  return post<{ conversation_id: string; accepted: boolean }>("/api/chat", {
+    conversation_id: conversationId,
+    interaction_id: interactionId,
+    answers,
+    message,
+    action: "answer",
+  });
+}
+
+export function dismissInteractionRequest(
+  conversationId: string,
+  interactionId: string,
+) {
+  return post<{ conversation_id: string; accepted: boolean }>("/api/chat", {
+    conversation_id: conversationId,
+    interaction_id: interactionId,
+    action: "dismiss",
   });
 }
 

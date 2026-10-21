@@ -10,6 +10,7 @@ from typing import TypeVar
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
+from pydantic import BaseModel
 
 logger = logging.getLogger("eduassist.llm")
 
@@ -230,6 +231,30 @@ class GeminiClient:
             if not response.text:
                 raise RuntimeError("لم يُرجع جيمناي قيمة تصنيف.")
             return response.text.strip()
+
+        return await self._run_with_failover(attempt)
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        schema: type[BaseModel],
+    ) -> str:
+        """توليد JSON مطابق لمخطط Pydantic وإرجاع النص الخام للتحقق."""
+        async def attempt(model: str) -> str:
+            response = await asyncio.wait_for(
+                self._get_client().aio.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=schema,
+                    ),
+                ),
+                timeout=GENERATE_TIMEOUT_SECONDS,
+            )
+            if not response.text:
+                raise RuntimeError("لم يُرجع جيمناي كائنًا منظمًا.")
+            return response.text
 
         return await self._run_with_failover(attempt)
 

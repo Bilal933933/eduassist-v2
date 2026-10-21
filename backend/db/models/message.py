@@ -48,6 +48,9 @@ class Message(Base):
     metadata_: Mapped[dict | None] = mapped_column(
         "metadata", JSONB, nullable=True, default=None
     )
+    interaction_: Mapped[dict | None] = mapped_column(
+        "interaction", JSONB, nullable=True, default=None
+    )
     sequence_number: Mapped[int] = mapped_column(
         sa.BigInteger(),
         sa.Identity(),

@@ -68,8 +68,16 @@ def _clean_topic(message: str) -> str:
 
 
 def _resolve_query(state: AgentState) -> str:
-    """اختيار نص البحث: عنوان محفوظ للمتابعة، أو عنوان مستخرج من الطلب."""
+    """اختيار نص البحث: عنوان منظم، أو محفوظ للمتابعة، أو من الطلب."""
     message = state["messages"][-1].strip()
+    properties = state.get("properties") or {}
+    structured = (
+        properties.get("topic").strip()
+        if isinstance(properties.get("topic"), str)
+        else ""
+    )
+    if structured:
+        return structured
     saved = (state.get("lesson_topic") or "").strip()
     if saved and len(message) <= 160 and _FOLLOWUP_PATTERN.search(message):
         return saved

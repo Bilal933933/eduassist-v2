@@ -8,6 +8,7 @@ from orchestration.nodes.shared.classification import (
     route_intent,
 )
 from orchestration.nodes.shared.abuse import create_abuse_node
+from orchestration.nodes.shared.clarify import clarify_node
 from orchestration.nodes.shared.general import create_general_node
 from orchestration.nodes.shared.greeting import create_greeting_node
 from orchestration.nodes.shared.quick_reply import quick_reply_node
@@ -18,6 +19,7 @@ from orchestration.nodes.shared.summarize import create_summarize_node
 __all__ = [
     "STUDENT_INTENTS",
     "TEACHER_INTENTS",
+    "clarify_node",
     "create_abuse_node",
     "create_classification_node",
     "create_general_node",

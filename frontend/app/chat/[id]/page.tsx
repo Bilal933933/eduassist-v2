@@ -32,7 +32,13 @@ function ConversationView({ conversationId }: { conversationId: string }) {
 
   const messages = useMessages(conversationId);
   const { conversation } = useConversation(conversationId);
-  const { send, isBusy, setIsBusy } = useSendMessage(conversationId);
+  const {
+    send,
+    answerInteraction,
+    dismissInteraction,
+    isBusy,
+    setIsBusy,
+  } = useSendMessage(conversationId);
   const { isConnected } = useChatSocket(conversationId, () => setIsBusy(false));
   const toggleSidebar = useSidebarStore((state) => state.toggle);
   const isSidebarOpen = useSidebarStore((state) => state.isOpen);
@@ -185,7 +191,13 @@ function ConversationView({ conversationId }: { conversationId: string }) {
           )}
           <div className="flex flex-col gap-2">
             {items.map((item) => (
-              <MessageBubble key={item.id} message={item} />
+              <MessageBubble
+                key={item.id}
+                message={item}
+                isBusy={isBusy || !isConnected}
+                onAnswer={answerInteraction}
+                onDismiss={dismissInteraction}
+              />
             ))}
           </div>
           {isBusy && <TypingIndicator />}

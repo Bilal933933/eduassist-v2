@@ -5,7 +5,9 @@ from typing import Literal
 
 from langgraph.graph import END, START, StateGraph
 
+from orchestration.interactions.slots import CLARIFY_INTENTS, missing_slots
 from orchestration.nodes.shared import (
+    clarify_node,
     create_abuse_node,
     create_classification_node,
     create_general_node,
@@ -29,12 +31,15 @@ Role = Literal["student", "teacher"]
 
 
 def _route_after_classify(state: AgentState) -> str:
-    """التوليد يمر بالاسترجاع، وتعديل خطة سابقة يستخدم عقدة التحضير."""
+    """التوليد يمر بالاسترجاع، والنقص الحاجب يمر ببطاقة الأسئلة."""
     intent = route_intent(state)
     if intent == "generation":
         return "retrieve"
     if intent == "lesson_refine":
         return "lesson_prep"
+    if state.get("properties_ready") and intent in CLARIFY_INTENTS:
+        if missing_slots(state):
+            return "clarify"
     return intent
 
 
@@ -43,6 +48,9 @@ def build_role_graph(
     role: Role,
     call_model: Callable[[str, str, float], Awaitable[str]],
     classify_intent: Callable[[str, tuple[str, ...]], Awaitable[str]],
+    interpret_intent: (
+        Callable[[str, tuple[str, ...]], Awaitable[dict | str]] | None
+    ) = None,
     retrieval_service: RetrievalService | None = None,
 ):
     """تجميع عقد الدور في رسم فرعي بلا نقاط تفتيش."""
@@ -51,7 +59,14 @@ def build_role_graph(
 
     builder = StateGraph(AgentState, output_schema=AgentOutput)
 
-    builder.add_node("classify", create_classification_node(classify_intent, intents))
+    builder.add_node(
+        "classify",
+        create_classification_node(
+            classify_intent,
+            intents,
+            interpret_intent,
+        ),
+    )
     builder.add_node("retrieve", create_retrieve_node(retrieval_service))
     builder.add_node("greeting", create_greeting_node(call_model))
     builder.add_node("quick_reply", quick_reply_node)
@@ -69,6 +84,9 @@ def build_role_graph(
 
     targets = ["retrieve", "greeting", "quick_reply", "general", "abuse", "recall"]
     if is_teacher:
+        builder.add_node("clarify", clarify_node)
+        targets.append("clarify")
+
         builder.add_node(
             "lesson_prep",
             create_lesson_prep_node(
@@ -94,6 +112,7 @@ def build_role_graph(
     builder.add_edge("retrieve", "generation")
     builder.add_edge("recall", "generation")
     if is_teacher:
+        builder.add_edge("clarify", END)
         builder.add_edge("lesson_prep", END)
         builder.add_edge("lesson_info", END)
 

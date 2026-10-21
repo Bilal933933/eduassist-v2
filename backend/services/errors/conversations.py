@@ -1,5 +1,5 @@
 """أخطاء المحادثات والأحداث (Conversations Errors)."""
-from services.errors.base import ConflictError, NotFoundError
+from services.errors.base import ConflictError, NotFoundError, ValidationError
 
 
 class ConversationNotFoundError(NotFoundError):
@@ -24,3 +24,27 @@ class ChatBusyError(ConflictError):
 
     code = "CHAT_BUSY"
     message = "المساعد ما زال يعالج رسالتك السابقة."
+
+
+class InteractionNotFoundError(NotFoundError):
+    """بطاقة استكمال البيانات غير موجودة أو غير مملوكة."""
+
+    code = "INTERACTION_NOT_FOUND"
+    message = "بطاقة الأسئلة غير موجودة."
+
+    def __init__(self) -> None:
+        super().__init__("interaction", self.message)
+
+
+class InteractionClosedError(ConflictError):
+    """محاولة إجابة بطاقة سبق إغلاقها."""
+
+    code = "INTERACTION_CLOSED"
+    message = "تمت الإجابة على هذه البطاقة أو إغلاقها مسبقًا."
+
+
+class InteractionAnswersInvalidError(ValidationError):
+    """إجابات لا تطابق أسئلة البطاقة."""
+
+    code = "INTERACTION_ANSWERS_INVALID"
+    message = "الإجابات المرسلة لا تطابق أسئلة البطاقة."
