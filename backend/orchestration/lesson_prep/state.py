@@ -17,6 +17,19 @@ SECTION_FIELDS: dict[str, str] = {
     "notes": "section_9_notes",
 }
 
+# التسميات العربية تُستخدم في موجّه تحديد نطاق التعديل.
+SECTION_LABELS: dict[str, str] = {
+    "basic_info": "البيانات الأساسية",
+    "objectives": "الأهداف التعليمية",
+    "prior_knowledge": "الخبرات السابقة",
+    "materials": "الوسائل والمواد التعليمية",
+    "lesson_flow": "سير الدرس",
+    "assessment": "التقويم",
+    "homework": "الواجبات والأنشطة الإثرائية",
+    "differentiation": "مراعاة الفروق الفردية",
+    "notes": "ملاحظات ما بعد الدرس",
+}
+
 
 def _merge_metadata(
     current: dict[str, Any] | None,

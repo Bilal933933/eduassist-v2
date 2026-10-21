@@ -49,6 +49,9 @@ def create_classification_node(
             context={
                 "allowed_intents": list(allowed_intents),
                 "history": history,
+                # وجود الخطة يغيّر معنى "عدّله/وسّعه" إلى تعديل خطة سابقة.
+                "lesson_plan_available": bool(state.get("lesson_plan")),
+                "lesson_topic": state.get("lesson_topic", ""),
             },
             task=spec.task,
             role=spec.role,

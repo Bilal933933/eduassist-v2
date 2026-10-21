@@ -79,6 +79,33 @@ def test_classification_node_routes_supported_intents_without_mutation() -> None
         assert state == snapshot
 
 
+def test_classification_prompt_carries_saved_lesson_context() -> None:
+    """المصنّف يرى وجود الخطة وموضوعها ليؤدي الضمائر إلى تعديل الخطة."""
+    seen: list[dict] = []
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = choices
+        seen.append(json.loads(prompt))
+        return "lesson_refine"
+
+    classify_node = create_classification_node(fake_classify, TEACHER_INTENTS)
+    asyncio.run(
+        classify_node(
+            {
+                "messages": ["وسّعه"],
+                "intent": "generation",
+                "lesson_plan": "خطة محفوظة",
+                "lesson_topic": "المفعول به",
+                "metadata": {},
+            }
+        )
+    )
+
+    context = seen[0]["context"]
+    assert context["lesson_plan_available"] is True
+    assert context["lesson_topic"] == "المفعول به"
+
+
 def test_classification_node_falls_back_to_generation_on_failure() -> None:
     """فشل المصنف لا يمنع الرد ويحوّل الرسالة لمسار التوليد الآمن."""
     async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
@@ -526,11 +553,48 @@ def test_lesson_refine_uses_saved_plan_from_checkpoint() -> None:
     first, second = asyncio.run(scenario())
 
     assert first["lesson_topic"] == "حضّر درس كان وأخواتها"
+    assert "basic_info" in first["lesson_sections"]
     assert second["intent"] == "lesson_refine"
     assert second["lesson_topic"] == "حضّر درس كان وأخواتها"
+    assert second["lesson_sections"] == second["sections"]
     basic = next(p for p in prompts if "اكتب البيانات الأساسية" in p["task"])
     assert "حضّر درس كان وأخواتها" in basic["task"]
     assert "خطة نهائية" in basic["task"]
+
+
+def test_lesson_refine_without_plan_asks_for_clarification() -> None:
+    """تعديل بلا خطة في المحادثة لا يشغّل التحضير ولا يخترع درسًا."""
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = message, system_prompt, temperature
+        raise AssertionError("لا يجوز توليد خطة عند غياب الخطة السابقة")
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "lesson_refine"
+
+    assistant_graph = build_graph(
+        call_model=fake_generate,
+        classify_intent=fake_classify,
+    )
+    result = asyncio.run(
+        assistant_graph.ainvoke(
+            {
+                "messages": ["وسّع الأهداف"],
+                "user_id": "user-1",
+                "user_role": "teacher",
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            checkpoint_config("user-1", "refine-without-plan"),
+        )
+    )
+
+    assert "لا توجد خطة" in result["response"]
+    assert result["metadata"]["refine_missing_plan"] is True
+    assert result["metadata"]["nodes_path"] == ["classify", "lesson_prep"]
 
 
 def test_checkpoint_accumulates_messages_without_subgraph_duplication() -> None:

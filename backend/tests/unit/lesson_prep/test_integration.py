@@ -6,7 +6,11 @@ from typing import Any
 
 import pytest
 
-from orchestration.nodes.teacher.lesson_prep_node import create_lesson_prep_node
+from orchestration.lesson_prep.state import SECTION_FIELDS
+from orchestration.nodes.teacher.lesson_prep_node import (
+    _parse_refine_targets,
+    create_lesson_prep_node,
+)
 
 from .conftest import FakeCallModel, FakeRetrievalService
 
@@ -230,7 +234,7 @@ class TestLessonPrepNodeRefinement:
             "intent": "lesson_refine",
             "lesson_topic": "كان وأخواتها",
             "lesson_plan": "الخطة السابقة بنصها",
-            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط", "topic": "درس آخر"},
         })
 
         basic_prompts = [p for p in prompts if "اكتب البيانات الأساسية" in p]
@@ -241,6 +245,112 @@ class TestLessonPrepNodeRefinement:
         assert result["lesson_topic"] == "كان وأخواتها"
         assert result["lesson_plan"] == "خطة معدّلة"
         assert result["metadata"]["lesson_refine"] is True
+
+    @pytest.mark.asyncio
+    async def test_refine_regenerates_only_targeted_section(self) -> None:
+        """تعديل جزء يعيد توليد قسمه فقط ويبقي بقية الأقسام كما هي."""
+        calls: list[str] = []
+        previous = {name: f"قديم_{name}" for name in SECTION_FIELDS}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            calls.append(task)
+            if task.startswith("حدّد أقسام خطة الدرس"):
+                return '{"sections": ["objectives"]}'
+            if "اكتب الأهداف التعليمية" in task:
+                return "أهداف موسعة"
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة محدثة"
+            return "محتوى جديد"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["أضف هدفاً عن التحليل"],
+            "intent": "lesson_refine",
+            "lesson_topic": "المفعول به",
+            "lesson_plan": "الخطة السابقة",
+            "lesson_sections": previous,
+            "context": {"subject": "اللغة العربية", "grade": "الأول المتوسط"},
+        })
+
+        assert result["sections"]["basic_info"] == "قديم_basic_info"
+        assert result["sections"]["lesson_flow"] == "قديم_lesson_flow"
+        assert result["sections"]["objectives"] == "أهداف موسعة"
+        assert result["lesson_sections"] == result["sections"]
+        assert result["metadata"]["refine_targets"] == ["objectives"]
+        assert not any("اكتب البيانات الأساسية" in task for task in calls)
+        assert sum("اكتب الأهداف التعليمية" in task for task in calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_general_refine_regenerates_all_sections(self) -> None:
+        """طلب عام مثل "عدّل الخطة" يعيد توليد كل الأقسام."""
+        calls: list[str] = []
+        previous = {name: f"قديم_{name}" for name in SECTION_FIELDS}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            calls.append(task)
+            if task.startswith("حدّد أقسام خطة الدرس"):
+                return '{"sections": ["all"]}'
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة جديدة"
+            return "محتوى جديد"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["عدّل الخطة"],
+            "intent": "lesson_refine",
+            "lesson_topic": "المفعول به",
+            "lesson_plan": "الخطة السابقة",
+            "lesson_sections": previous,
+            "context": {},
+        })
+
+        assert result["sections"]["basic_info"] == "محتوى جديد"
+        assert result["sections"]["objectives"] == "محتوى جديد"
+        assert result["metadata"]["refine_targets"] == ["all"]
+        assert any("اكتب البيانات الأساسية" in task for task in calls)
+
+    def test_parse_refine_targets_accepts_known_sections_only(self) -> None:
+        """أسماء الأقسام غير المعروفة أو رد غير صالح تعني إعادة الخطة كاملة."""
+        assert _parse_refine_targets('{"sections": ["objectives"]}') == ["objectives"]
+        assert _parse_refine_targets('{"sections": ["all"]}') == []
+        assert _parse_refine_targets('{"sections": ["unknown"]}') == []
+        assert _parse_refine_targets("not json") == []
+
+    @pytest.mark.asyncio
+    async def test_refine_without_saved_plan_asks_for_clarification(self) -> None:
+        """طلب التعديل بلا خطة سابقة يطلب توضيحًا ولا يولّد خطة عامة."""
+        calls = {"count": 0}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = task, system_prompt, temperature
+            calls["count"] += 1
+            return "خطة"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["وسّع الأهداف"],
+            "intent": "lesson_refine",
+            "lesson_topic": "",
+            "lesson_plan": "   ",
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        assert calls["count"] == 0
+        assert "لا توجد خطة" in result["response"]
+        assert result["sections"] == {}
+        assert result["metadata"]["refine_missing_plan"] is True
+        assert result["metadata"]["final_plan_generated"] is False
+        assert "lesson_topic" not in result
+        assert "lesson_plan" not in result
 
     @pytest.mark.asyncio
     async def test_failed_section_is_skipped_not_fatal(self) -> None:

@@ -50,9 +50,10 @@ class AgentState(TypedDict, total=False):
     metadata: dict[str, Any]
     retried_sections: list[str]
     failed_sections: list[str]
-    # سياق تحضير الدرس الممتد بين الأدوار: الموضوع وآخر خطة منتَجة.
+    # سياق تحضير الدرس الممتد بين الأدوار: الموضوع وآخر خطة وأقسامها.
     lesson_topic: str
     lesson_plan: str
+    lesson_sections: dict[str, str]
     retrieved_chunks: list[dict[str, Any]]
 
 
@@ -70,6 +71,7 @@ class AgentOutput(TypedDict, total=False):
     failed_sections: list[str]
     lesson_topic: str
     lesson_plan: str
+    lesson_sections: dict[str, str]
 
 
 def user_is_teacher(state: AgentState) -> bool:
