@@ -4,19 +4,18 @@ from typing import Any
 
 from typing_extensions import Annotated, TypedDict
 
-import operator
-
-
-def _merge_sections(
-    current: dict[str, str] | None,
-    update: dict[str, str] | None,
-) -> dict[str, str]:
-    """دمج أقسام الدرس من وكلاء متعددين دون مسح البيانات الموجودة."""
-    if current is None:
-        current = {}
-    if update is None:
-        return current
-    return {**current, **update}
+# خريطة اسم القسم إلى حقل حالته: مصدر واحد يقرأ منه المشرف والناقد والجسر.
+SECTION_FIELDS: dict[str, str] = {
+    "basic_info": "section_1_basic",
+    "objectives": "section_2_objectives",
+    "prior_knowledge": "section_3_prior",
+    "materials": "section_4_materials",
+    "lesson_flow": "section_5_flow",
+    "assessment": "section_6_assessment",
+    "homework": "section_7_homework",
+    "differentiation": "section_8_differentiation",
+    "notes": "section_9_notes",
+}
 
 
 def _merge_metadata(
@@ -31,18 +30,29 @@ def _merge_metadata(
     return {**current, **update}
 
 
+def _append_list(
+    current: list[str] | None,
+    update: list[str] | None,
+) -> list[str]:
+    """إلحاق عناصر قائمة من عقد متعددة دون فقد السابق."""
+    return (current or []) + (update or [])
+
+
 class LessonPrepState(TypedDict, total=False):
     subject: str
     grade: str
     topic: str
+    # وضع التعديل: طلب المعلم والخطة السابقة تُحقنان في موجّه كل قسم.
+    request: str
+    previous_plan: str
 
     retrieved_chunks: list[dict[str, Any]]
 
-    sections: Annotated[dict[str, str], _merge_sections]
     quality_score: float
     needs_improvement: str
     metadata: Annotated[dict[str, Any], _merge_metadata]
-    retried_sections: Annotated[list[str], lambda a, b: (a or []) + (b or [])]
+    retried_sections: Annotated[list[str], _append_list]
+    failed_sections: Annotated[list[str], _append_list]
 
     section_1_basic: str
     section_2_objectives: str

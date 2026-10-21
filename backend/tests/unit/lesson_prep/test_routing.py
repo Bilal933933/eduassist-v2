@@ -203,10 +203,37 @@ def test_route_next_end_when_all_complete() -> None:
     assert result.goto == END
 
 
-def test_route_next_end_when_max_iterations_reached() -> None:
+def test_route_next_max_iterations_goes_to_assembler() -> None:
     state = {"iteration": MAX_ITERATIONS}
     result = route_next(state)
+    assert result.goto == "assembler"
+
+
+def test_route_next_final_plan_ends_even_after_max_iterations() -> None:
+    """وجود مفتاح الخطة ينهي الرسم ويمنع عودة السقف إلى المجمع بلا نهاية."""
+    state = {"iteration": MAX_ITERATIONS, "final_lesson_plan": ""}
+    result = route_next(state)
     assert result.goto == END
+
+
+def test_route_next_skips_failed_section() -> None:
+    """القسم الذي سُجّل فشله لا يُعاد اختياره إلى ما لا نهاية."""
+    state = {
+        "iteration": 1,
+        "retrieved_chunks": [],
+        "section_1_basic": "",
+        "section_2_objectives": "objectives",
+        "section_3_prior": "prior",
+        "section_4_materials": "materials",
+        "section_5_flow": "flow",
+        "section_6_assessment": "assessment",
+        "section_7_homework": "homework",
+        "section_8_differentiation": "differentiation",
+        "section_9_notes": "notes",
+        "failed_sections": ["basic_info"],
+    }
+    result = route_next(state)
+    assert result.goto == "critic"
 
 
 def test_route_next_increments_iteration() -> None:

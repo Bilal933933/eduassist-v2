@@ -32,6 +32,12 @@ class ActiveChatRuns:
         """تحرير الحجز (آمن عند التكرار)."""
         self._started_at.pop((user_id, conversation_id), None)
 
+    def touch(self, user_id: str, conversation_id: str) -> None:
+        """تجديد عمر التشغيل الحي؛ TTL يصبح كاشف تعليق لا سقف مدة."""
+        key = (user_id, conversation_id)
+        if key in self._started_at:
+            self._started_at[key] = self._clock()
+
     def reset(self) -> None:
         """مسح كل الحجوزات (للاختبارات)."""
         self._started_at.clear()

@@ -54,6 +54,7 @@ def build_graph(
     student = build_student_graph(
         call_model=call_model,
         classify_intent=classify_intent,
+        retrieval_service=retrieval_service,
     )
     builder = StateGraph(AgentState)
     builder.add_node("teacher", teacher)

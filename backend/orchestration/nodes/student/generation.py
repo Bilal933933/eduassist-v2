@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 
 from orchestration.state import AgentState, append_node, current_user_role
+from orchestration.nodes.shared.retrieval import format_chunks
 from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
@@ -16,6 +17,9 @@ def create_generation_node(
         """إرسال أحدث رسالة إلى النموذج وإعادة الرد كتحديث للحالة."""
         context = state.get("context", {})
         view = dict(context.get("generator_view", context))
+        references = format_chunks(state.get("retrieved_chunks", []))
+        if references:
+            view["references"] = references
         if state.get("summary"):
             view["summary"] = state["summary"]
         spec = get_prompt("generation", current_user_role(state))

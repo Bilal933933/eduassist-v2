@@ -5,7 +5,7 @@ from typing import Literal
 from langgraph.graph import END
 from langgraph.types import Command
 
-from orchestration.lesson_prep.state import LessonPrepState
+from orchestration.lesson_prep.state import SECTION_FIELDS, LessonPrepState
 
 # سقف زيارات المشرف: المسار السليم 13 زيارة، وكل قسم يُعاد مرة واحدة
 # يضيف زيارتين (إعادة التوجيه ثم التقييم) → 32 زيارة في أسوأ الحالات.
@@ -44,14 +44,23 @@ SECTION_AGENTS = frozenset(
 )
 
 
+def _section_ready(state: LessonPrepState, name: str, field: str) -> bool:
+    """القسم جاهز إن وُلد نصه أو سُجّل فشله؛ الفارغ الفاشل لا يُعاد بلا نهاية."""
+    return bool(state.get(field)) or name in (state.get("failed_sections") or [])
+
+
 def route_next(state: LessonPrepState) -> Command:
     iteration = state.get("iteration", 0)
-    if iteration >= MAX_ITERATIONS:
-        return Command(goto=END)
 
     # التجميع النهائي ينهي الرسم حتى لو بقيت نتيجة الناقد في الحالة.
-    if state.get("final_lesson_plan"):
+    # الفحص بوجود المفتاح لا بقيمته: المجمع قد يعيد نصًا فارغًا، فيجب ألا
+    # يعيد السقف توجيهه إلى المجمع مرة أخرى بلا نهاية.
+    if "final_lesson_plan" in state:
         return Command(goto=END)
+
+    # تجاوز السقف لا ينهي الرسم بلا خطة: الأقسام المنتجة تُجمع بدل إسقاطها.
+    if iteration >= MAX_ITERATIONS:
+        return Command(goto="assembler", update={"iteration": iteration + 1})
 
     quality_score = state.get("quality_score")
     needs_improvement = state.get("needs_improvement")
@@ -88,27 +97,11 @@ def route_next(state: LessonPrepState) -> Command:
     # التسلسل الطبيعي عند اكتمال الأقسام
     if "retrieved_chunks" not in state:
         next_agent = "retriever"
-    elif not state.get("section_1_basic"):
-        next_agent = "basic_info"
-    elif not state.get("section_2_objectives"):
-        next_agent = "objectives"
-    elif not state.get("section_3_prior"):
-        next_agent = "prior_knowledge"
-    elif not state.get("section_4_materials"):
-        next_agent = "materials"
-    elif not state.get("section_5_flow"):
-        next_agent = "lesson_flow"
-    elif not state.get("section_6_assessment"):
-        next_agent = "assessment"
-    elif not state.get("section_7_homework"):
-        next_agent = "homework"
-    elif not state.get("section_8_differentiation"):
-        next_agent = "differentiation"
-    elif not state.get("section_9_notes"):
-        next_agent = "notes"
-    elif not state.get("final_lesson_plan"):
-        next_agent = "critic"
     else:
-        next_agent = END
+        next_agent = "critic"
+        for name, field in SECTION_FIELDS.items():
+            if not _section_ready(state, name, field):
+                next_agent = name
+                break
 
     return Command(goto=next_agent, update={"iteration": iteration + 1})

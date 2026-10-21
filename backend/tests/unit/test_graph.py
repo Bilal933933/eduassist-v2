@@ -10,6 +10,7 @@ from orchestration.nodes import (
     create_greeting_node,
     quick_reply_node,
 )
+from orchestration.nodes.shared.retrieval import MAX_CHUNK_CHARS, format_chunks
 from prompts.tasks import (
     GENERAL_RESPONSE_TASK,
     GENERATION_TASK,
@@ -216,6 +217,110 @@ def test_graph_routes_recall_through_summarize_to_generation() -> None:
     assert any(entry["task"] == RECALL_TASK for entry in seen)
 
 
+class _FakeRetrieval:
+    """خدمة استرجاع وهمية تنجح أو تفشل."""
+
+    def __init__(self, chunks: list[dict] | None = None) -> None:
+        self._chunks = chunks or []
+        self._error = None
+
+    async def search_hybrid(
+        self,
+        query: str,
+        subject: str | None = None,
+        grade: str | None = None,
+    ) -> list[dict]:
+        _ = query, subject, grade
+        if self._error is not None:
+            raise self._error
+        return self._chunks
+
+
+def test_student_generation_uses_retrieved_references() -> None:
+    """مسار الطالب يمر بالاسترجاع ويحقن المراجع في سياق التوليد."""
+    seen: list[dict] = []
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        seen.append(json.loads(message))
+        return "رد"
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "generation"
+
+    assistant_graph = build_graph(
+        call_model=fake_generate,
+        classify_intent=fake_classify,
+        retrieval_service=_FakeRetrieval(
+            [{"content": "قاعدة نحوية موثوقة", "source_type": "curriculum"}]
+        ),
+    )
+    result = asyncio.run(
+        assistant_graph.ainvoke(
+            {
+                "messages": ["اشرح المفعول به"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            checkpoint_config("user-1", "student-retrieval"),
+        )
+    )
+
+    generation = next(p for p in seen if p["task"] == GENERATION_TASK)
+    assert "قاعدة نحوية موثوقة" in generation["context"]["references"]
+    assert result["metadata"]["nodes_path"] == ["classify", "retrieve", "generation"]
+
+
+def test_student_generation_survives_retrieval_failure() -> None:
+    """فشل الاسترجاع لا يمنع الرد ولا يدّعي استخدام مراجع."""
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = message, system_prompt, temperature
+        return "رد"
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = prompt, choices
+        return "generation"
+
+    retrieval = _FakeRetrieval()
+    retrieval._error = RuntimeError("down")
+    assistant_graph = build_graph(
+        call_model=fake_generate,
+        classify_intent=fake_classify,
+        retrieval_service=retrieval,
+    )
+    result = asyncio.run(
+        assistant_graph.ainvoke(
+            {
+                "messages": ["اشرح المفعول به"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            checkpoint_config("user-1", "student-retrieval-down"),
+        )
+    )
+
+    assert result["response"] == "رد"
+    assert result["metadata"]["retrieval_used"] is False
+
+
+def test_format_chunks_caps_chunk_length() -> None:
+    """المقطع الطويل يُقص فلا يتضخم موجّه الوكيل."""
+    text = format_chunks([{"content": "ا" * 5000, "source_type": "doc"}])
+    assert text.startswith("- [doc] ")
+    assert len(text) == len("- [doc] ") + MAX_CHUNK_CHARS
+
+
 def test_abuse_node_escalates_count_without_mutating_state() -> None:
     """عقدة الإساءة ترفع العد في الحالة ولا تعدل المدخلات."""
     from orchestration.nodes import create_abuse_node
@@ -308,12 +413,128 @@ def test_metadata_path_does_not_accumulate_across_turns() -> None:
         )
 
     result = asyncio.run(scenario())
-    assert result["metadata"]["nodes_path"] == ["classify", "generation"]
+    assert result["metadata"]["nodes_path"] == ["classify", "retrieve", "generation"]
+
+
+def test_summary_does_not_leak_across_turns() -> None:
+    """ملخص دور التذكر لا يبقى في سياق توليد الدور التالي."""
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        payload = json.loads(message)
+        if payload["task"] == RECALL_TASK:
+            return "كنا نتحدث عن المفعول به"
+        return "رد"
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = choices
+        message = json.loads(prompt)["message"]
+        return "recall" if message == "ما الذي كنا نتحدث عنه" else "generation"
+
+    async def scenario() -> dict:
+        assistant_graph = build_graph(
+            call_model=fake_generate,
+            classify_intent=fake_classify,
+        )
+        config = checkpoint_config("user-1", "summary-leak")
+        await assistant_graph.ainvoke(
+            {
+                "messages": ["ما الذي كنا نتحدث عنه"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+                "summary": "",
+            },
+            config,
+        )
+        return await assistant_graph.ainvoke(
+            {
+                "messages": ["اشرح المفعول به"],
+                "user_id": "user-1",
+                "user_role": "student",
+                "metadata": {},
+                "summary": "",
+            },
+            config,
+        )
+
+    result = asyncio.run(scenario())
+    assert result["intent"] == "generation"
+    assert result["metadata"]["recalled"] is False
+
+
+def test_lesson_refine_uses_saved_plan_from_checkpoint() -> None:
+    """تعديل خطة لاحقة يعيد استخدام الموضوع وآخر خطة من نقطة التفتيش."""
+    prompts: list[dict] = []
+
+    async def fake_generate(
+        message: str, system_prompt: str, temperature: float
+    ) -> str:
+        _ = system_prompt, temperature
+        try:
+            payload = json.loads(message)
+        except json.JSONDecodeError:
+            payload = {"task": message}
+        prompts.append(payload)
+        task = payload["task"]
+        if "قيّم جودة خطة الدرس" in task:
+            return '{"score": 0.9, "section": null}'
+        if "جمّع الأقسام التالية" in task:
+            return "خطة نهائية"
+        return "قسم"
+
+    async def fake_classify(prompt: str, choices: tuple[str, ...]) -> str:
+        _ = choices
+        message = json.loads(prompt)["message"]
+        if "كان وأخواتها" in message:
+            return "lesson_prep"
+        return "lesson_refine"
+
+    async def scenario() -> tuple[dict, dict]:
+        assistant_graph = build_graph(
+            call_model=fake_generate,
+            classify_intent=fake_classify,
+        )
+        config = checkpoint_config("user-1", "lesson-refine")
+        first = await assistant_graph.ainvoke(
+            {
+                "messages": ["حضّر درس كان وأخواتها"],
+                "user_id": "user-1",
+                "user_role": "teacher",
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            config,
+        )
+        prompts.clear()
+        second = await assistant_graph.ainvoke(
+            {
+                "messages": ["وسّع الأهداف"],
+                "user_id": "user-1",
+                "user_role": "teacher",
+                "metadata": {},
+                "summary": "",
+                "retrieved_chunks": [],
+            },
+            config,
+        )
+        return first, second
+
+    first, second = asyncio.run(scenario())
+
+    assert first["lesson_topic"] == "حضّر درس كان وأخواتها"
+    assert second["intent"] == "lesson_refine"
+    assert second["lesson_topic"] == "حضّر درس كان وأخواتها"
+    basic = next(p for p in prompts if "اكتب البيانات الأساسية" in p["task"])
+    assert "حضّر درس كان وأخواتها" in basic["task"]
+    assert "خطة نهائية" in basic["task"]
 
 
 def test_checkpoint_accumulates_messages_without_subgraph_duplication() -> None:
     """نقطة التفتيش تجمع الرسائل دون أن يضيفها الرسم الفرعي مرة ثانية."""
-
     async def fake_generate(
         message: str, system_prompt: str, temperature: float
     ) -> str:

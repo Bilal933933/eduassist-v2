@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from orchestration.lesson_prep.agents import (
+    _parse_score,
     create_assembler_node,
     create_critic_node,
     create_objectives_node,
@@ -141,19 +142,17 @@ async def test_critic_node_high_score() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {
-            "basic_info": "بيانات أساسية",
-            "objectives": "أهداف تعليمية",
-            "lesson_flow": "سير الدرس",
-        },
+        "section_1_basic": "بيانات أساسية",
         "section_2_objectives": "أهداف تعليمية للدرس",
+        "section_5_flow": "سير الدرس",
     }
 
     result = await node(state)
 
     assert result["quality_score"] == 0.9
     assert result["needs_improvement"] == ""
-    assert "critic" in result["sections"]
+    assert "sections" not in result
+    assert "بيانات أساسية" in call_model.calls[0][0]
 
 
 @pytest.mark.asyncio
@@ -166,12 +165,9 @@ async def test_critic_node_low_score_returns_section() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {
-            "basic_info": "بيانات أساسية",
-            "objectives": "أهداف تعليمية",
-            "lesson_flow": "سير الدرس ناقص",
-        },
+        "section_1_basic": "بيانات أساسية",
         "section_2_objectives": "أهداف تعليمية للدرس",
+        "section_5_flow": "سير الدرس ناقص",
     }
 
     result = await node(state)
@@ -188,7 +184,6 @@ async def test_critic_node_invalid_json_defaults() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {},
         "section_2_objectives": "",
     }
 
@@ -208,8 +203,8 @@ async def test_critic_node_parses_fenced_json() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {"objectives": "أهداف تعليمية"},
         "section_2_objectives": "أهداف تعليمية للدرس",
+        "section_3_prior": "خبرات سابقة",
     }
 
     result = await node(state)
@@ -228,8 +223,8 @@ async def test_critic_node_ignores_unknown_section() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {"lesson_flow": "سير الدرس ناقص"},
         "section_2_objectives": "أهداف تعليمية للدرس",
+        "section_5_flow": "سير الدرس ناقص",
     }
 
     result = await node(state)
@@ -246,13 +241,18 @@ async def test_critic_node_clamps_score_range() -> None:
 
     state: LessonPrepState = {
         "topic": "كان وأخواتها",
-        "sections": {},
         "section_2_objectives": "",
     }
 
     result = await node(state)
 
     assert result["quality_score"] == 1.0
+
+
+def test_parse_score_rejects_bool() -> None:
+    """القيمة المنطقية ليست تقييمًا صالحًا ولا تُحوَّل إلى 1.0."""
+    assert _parse_score(True) == 0.5
+    assert _parse_score(False) == 0.5
 
 
 @pytest.mark.asyncio

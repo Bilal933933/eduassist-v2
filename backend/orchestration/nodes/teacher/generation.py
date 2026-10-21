@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 
 from orchestration.state import AgentState, append_node
+from orchestration.nodes.shared.retrieval import format_chunks
 from prompts import get_prompt
 from shared.prompt_builder import build_prompt
 
@@ -19,6 +20,9 @@ def create_teacher_generation_node(
         view = dict(context.get("generator_view", {"history": context.get("history", [])}))
         if brief:
             view["teacher_brief"] = brief
+        references = format_chunks(state.get("retrieved_chunks", []))
+        if references:
+            view["references"] = references
         if state.get("summary"):
             view["summary"] = state["summary"]
         # هذه العقدة مركّبة في رسم المعلم فقط، فالدور ثابت هنا.

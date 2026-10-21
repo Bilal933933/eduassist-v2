@@ -15,13 +15,13 @@ class TestLessonPrepNodeSections:
     """اختبارات نقل الأقسام بين AgentState و LessonPrepState."""
 
     @pytest.mark.asyncio
-    async def test_passes_sections_to_subgraph(
+    async def test_returns_sections_without_inheriting_previous(
         self,
         lesson_prep_node,
         base_context,
         base_messages,
     ) -> None:
-        """يتحقق من أن العقدة تمرر sections من AgentState إلى الرسم الفرعي."""
+        """العقدة تبني أقسام الدور الجديد ولا ترث أقسام دور سابق."""
         input_state: dict[str, Any] = {
             "messages": base_messages,
             "context": base_context,
@@ -34,6 +34,7 @@ class TestLessonPrepNodeSections:
         assert "sections" in result
         assert isinstance(result["sections"], dict)
         assert len(result["sections"]) > 0
+        assert result["sections"]["basic_info"] != "القسم الأساسي موجود مسبقاً"
 
     @pytest.mark.asyncio
     async def test_empty_sections_defaults(
@@ -205,6 +206,106 @@ class TestLessonPrepNodeQualityRetry:
         assert len(flow_calls) == 2, "لم يُعد الناقد كتابة قسم سير الدرس في التحضير الثاني"
 
 
+class TestLessonPrepNodeRefinement:
+    """اختبارات تعديل خطة سبق تحضيرها."""
+
+    @pytest.mark.asyncio
+    async def test_refine_uses_previous_plan_and_keeps_topic(self) -> None:
+        """طلب التعديل يحافظ على الموضوع ويحقن الخطة السابقة في الموجّه."""
+        prompts: list[str] = []
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            prompts.append(task)
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة معدّلة"
+            return "قسم"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["وسّع الأهداف"],
+            "intent": "lesson_refine",
+            "lesson_topic": "كان وأخواتها",
+            "lesson_plan": "الخطة السابقة بنصها",
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        basic_prompts = [p for p in prompts if "اكتب البيانات الأساسية" in p]
+        assert basic_prompts, "لم يُستدع قسم البيانات الأساسية"
+        assert "كان وأخواتها" in basic_prompts[0]
+        assert "الخطة السابقة بنصها" in basic_prompts[0]
+        assert "وسّع الأهداف" in basic_prompts[0]
+        assert result["lesson_topic"] == "كان وأخواتها"
+        assert result["lesson_plan"] == "خطة معدّلة"
+        assert result["metadata"]["lesson_refine"] is True
+
+    @pytest.mark.asyncio
+    async def test_failed_section_is_skipped_not_fatal(self) -> None:
+        """فشل نداء قسم واحد يُعلَّم ويتخطى، ويصل التحضير إلى خطة."""
+        objective_calls = {"n": 0}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة نهائية"
+            if "اكتب الأهداف التعليمية" in task:
+                objective_calls["n"] += 1
+                raise RuntimeError("انقطاع مؤقت")
+            return "محتوى"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["كان وأخواتها"],
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        assert result["response"] == "خطة نهائية"
+        assert result["failed_sections"] == ["objectives"]
+        assert "objectives" not in result["sections"]
+        assert objective_calls["n"] == 1
+        assert result["metadata"]["failed_sections"] == ["objectives"]
+
+
+    @pytest.mark.asyncio
+    async def test_failed_section_is_dropped_after_successful_retry(self) -> None:
+        """قسم فشل ثم نجح في الإعادة لا يبقى في قائمة الفشل."""
+        attempts = {"objectives": 0, "critic": 0}
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            if "اكتب الأهداف التعليمية" in task:
+                attempts["objectives"] += 1
+                if attempts["objectives"] == 1:
+                    raise RuntimeError("انقطاع أول")
+                return "أهداف تعليمية"
+            if "قيّم جودة خطة الدرس" in task:
+                attempts["critic"] += 1
+                if attempts["critic"] == 1:
+                    return '{"score": 0.2, "section": "objectives"}'
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة نهائية"
+            return "محتوى"
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["كان وأخواتها"],
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        assert result["sections"]["objectives"] == "أهداف تعليمية"
+        assert result["failed_sections"] == []
+        assert result["retried_sections"] == ["objectives"]
+        assert result["metadata"]["failed_sections"] == []
+
+
 class TestLessonPrepNodeIterationBudget:
     """اختبارات سقف iterations عند طلب الناقد لإعادة كتابة كل الأقسام."""
 
@@ -245,6 +346,27 @@ class TestLessonPrepNodeIterationBudget:
         assert result["response"], "لم تُنتج خطة نهائية رغم اكتمال دورات التقييم"
         assert pending == [], "لم يطلب الناقد كل الأقسام"
         assert result["retried_sections"]
+
+    @pytest.mark.asyncio
+    async def test_empty_sections_still_reach_assembler_at_cap(self) -> None:
+        """أقسام فارغة لا تُنهي التحضير بلا خطة عند بلوغ سقف الزيارات."""
+
+        async def call_model(task: str, system_prompt: str, temperature: float) -> str:
+            _ = system_prompt, temperature
+            if "قيّم جودة خطة الدرس" in task:
+                return '{"score": 0.9, "section": null}'
+            if "جمّع الأقسام التالية" in task:
+                return "خطة من الأقسام المتاحة"
+            return ""
+
+        node = create_lesson_prep_node(call_model=call_model, retrieval_service=None)
+
+        result = await node({
+            "messages": ["كان وأخواتها"],
+            "context": {"subject": "اللغة العربية", "grade": "الثاني المتوسط"},
+        })
+
+        assert result["response"] == "خطة من الأقسام المتاحة"
 
 
 class TestLessonPrepNodeRetrievalFailure:

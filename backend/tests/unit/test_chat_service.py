@@ -30,10 +30,12 @@ class _FakeGraph:
         self._response = response
         self._error = error
         self._metadata = metadata
+        self.state: dict | None = None
 
     def astream_events(self, state, config, version):  # type: ignore[no-untyped-def]
         """مولد أحداث على نمط LangGraph."""
-        _ = state, config, version
+        self.state = state
+        _ = config, version
 
         async def stream():  # type: ignore[no-untyped-def]
             if self._error is not None:
@@ -46,6 +48,47 @@ class _FakeGraph:
                     "event": "on_chain_end",
                     "data": {"output": output},
                 }
+
+        return stream()
+
+
+class _NamedGraph:
+    """رسم وهمي يبث عقدة فرعية ثم عقدة الدور ثم عقدة متأخرة."""
+
+    def astream_events(self, state, config, version):  # type: ignore[no-untyped-def]
+        _ = state, config, version
+
+        async def stream():  # type: ignore[no-untyped-def]
+            yield {
+                "event": "on_chain_end",
+                "name": "generation",
+                "data": {
+                    "output": {
+                        "response": "رد فرعي",
+                        "metadata": {"handled_by": "generation"},
+                    }
+                },
+            }
+            yield {
+                "event": "on_chain_end",
+                "name": "student",
+                "data": {
+                    "output": {
+                        "response": "رد الدور",
+                        "metadata": {"handled_by": "student"},
+                    }
+                },
+            }
+            yield {
+                "event": "on_chain_end",
+                "name": "late",
+                "data": {
+                    "output": {
+                        "response": "رد متأخر",
+                        "metadata": {"handled_by": "late"},
+                    }
+                },
+            }
 
         return stream()
 
@@ -261,6 +304,22 @@ def test_run_chat_reply_save_failure_emits_failed(monkeypatch) -> None:
     asyncio.run(scenario())
     assert [e["type"] for e in socket.events] == ["chat.started", "chat.failed"]
     assert active_chat_runs.try_begin(owner, conv)
+
+
+def test_collect_response_resets_summary_each_turn(monkeypatch) -> None:
+    """كل دور يبدأ بلا ملخص حتى لا يتسرب ملخص التذكر إلى التوليد التالي."""
+    socket = FakeWebSocket()
+    graph = _FakeGraph(response="رد")
+    _run(monkeypatch, graph, socket)
+    assert graph.state is not None
+    assert graph.state["summary"] == ""
+
+
+def test_collect_response_prefers_role_node_result(monkeypatch) -> None:
+    """نتيجة عقدة الدور تُختار ولو انتهت عقدة أخرى بعدها."""
+    socket = FakeWebSocket()
+    _run(monkeypatch, _NamedGraph(), socket)
+    assert socket.events[1]["data"]["response"] == "رد الدور"
 
 
 def test_run_chat_survives_client_disconnect(monkeypatch) -> None:

@@ -18,6 +18,7 @@ TEACHER_INTENTS: tuple[Intent, ...] = (
     "abuse",
     "recall",
     "lesson_prep",
+    "lesson_refine",
 )
 
 STUDENT_INTENTS: tuple[Intent, ...] = (

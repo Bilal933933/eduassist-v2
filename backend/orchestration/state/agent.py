@@ -6,7 +6,14 @@ from typing import Annotated, Any, Literal
 from typing_extensions import TypedDict
 
 Intent = Literal[
-    "greeting", "quick_reply", "generation", "general", "abuse", "recall", "lesson_prep"
+    "greeting",
+    "quick_reply",
+    "generation",
+    "general",
+    "abuse",
+    "recall",
+    "lesson_prep",
+    "lesson_refine",
 ]
 
 
@@ -42,6 +49,11 @@ class AgentState(TypedDict, total=False):
     sections: dict[str, str]
     metadata: dict[str, Any]
     retried_sections: list[str]
+    failed_sections: list[str]
+    # سياق تحضير الدرس الممتد بين الأدوار: الموضوع وآخر خطة منتَجة.
+    lesson_topic: str
+    lesson_plan: str
+    retrieved_chunks: list[dict[str, Any]]
 
 
 class AgentOutput(TypedDict, total=False):
@@ -55,6 +67,9 @@ class AgentOutput(TypedDict, total=False):
     sections: dict[str, str]
     metadata: dict[str, Any]
     retried_sections: list[str]
+    failed_sections: list[str]
+    lesson_topic: str
+    lesson_plan: str
 
 
 def user_is_teacher(state: AgentState) -> bool:

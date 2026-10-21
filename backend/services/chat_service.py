@@ -31,6 +31,9 @@ logger = logging.getLogger("eduassist.chat")
 CHAT_FAILED_CODE = "CHAT_FAILED"
 CHAT_FAILED_MESSAGE = "تعذر إكمال المحادثة."
 
+# عقد الرسم الأب: نتيجتها هي النتيجة النهائية للدور، دون أحداث فرعية أعمق.
+ROLE_NODE_NAMES = frozenset({"teacher", "student"})
+
 # إعادة التصدير للتوافق مع المستوردين الحاليين.
 __all__ = [
     "AcceptedChat",
@@ -164,13 +167,26 @@ async def _collect_response(
             # تصفير الميتا ديتا لكل دور: نقطة التفتيش تحتفظ بالقيمة السابقة
             # فتُلحق مسار تنفيذ الدور السابق بمسار الدور الجديد.
             "metadata": {},
+            # الملخص عابر داخل الدور: بلا تصفيره يبقى في نقطة التفتيش
+            # فيُحقن ملخص دور التذكر في كل توليد لاحق.
+            "summary": "",
+            # حقول خرج الدور السابق: تُصفَّر وإلا تراكمت في نقطة التفتيش
+            # أو أوحى استرجاع دور قديم بأن الدور الجديد استخدمه.
+            "sections": {},
+            "retried_sections": [],
+            "failed_sections": [],
+            "retrieved_chunks": [],
         },
         checkpoint_config(owner_key, str(accepted.conversation_id)),
         version="v2",
     )
     response: str | None = None
     metadata: dict[str, Any] = {}
+    role_response: str | None = None
+    role_metadata: dict[str, Any] = {}
     async for event in event_stream:
+        # كل حدث يثبت أن التشغيل ما زال حيًا: التحضير قد يتجاوز TTL بكثير.
+        active_chat_runs.touch(owner_key, str(accepted.conversation_id))
         if event.get("event") != "on_chain_end":
             continue
         output = event.get("data", {}).get("output", {})
@@ -178,8 +194,14 @@ async def _collect_response(
             continue
         if isinstance(output.get("response"), str):
             response = output["response"]
-        if isinstance(output.get("metadata"), dict):
-            metadata = output["metadata"]
+            if isinstance(output.get("metadata"), dict):
+                metadata = output["metadata"]
+            # نتيجة عقدة الدور أرجح من أي عقدة فرعية تنتهي بعدها.
+            if event.get("name") in ROLE_NODE_NAMES:
+                role_response = response
+                role_metadata = dict(metadata)
+    if role_response is not None:
+        return role_response, role_metadata
     return response, metadata
 
 
