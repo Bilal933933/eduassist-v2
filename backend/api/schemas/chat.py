@@ -58,6 +58,12 @@ class ConversationCreated(BaseModel):
     title: str | None
 
 
+class ConversationDeleted(BaseModel):
+    """نتيجة حذف المحادثة."""
+
+    deleted: bool
+
+
 class ConversationItem(BaseModel):
     """كل بيانات محادثة واحدة في القائمة."""
 

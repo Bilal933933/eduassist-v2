@@ -210,6 +210,66 @@ def test_conversation_list_uses_paged_envelope() -> None:
         app.dependency_overrides.clear()
 
 
+def _override_delete_session(user: Mock, deleted: bool) -> Mock:
+    """حقن جلسة تعيد نتيجة حذف محددة لفحص مسار الحذف."""
+    session = Mock()
+    session.execute = AsyncMock(return_value=Mock(rowcount=1 if deleted else 0))
+    session.commit = AsyncMock()
+
+    async def fake_get_db():  # type: ignore[no-untyped-def]
+        yield session
+
+    app.dependency_overrides[chat_routes.get_db] = fake_get_db
+    app.dependency_overrides[chat_routes.get_current_user] = lambda: user
+    app.state.graph = None
+    return session
+
+
+def test_delete_owned_conversation_returns_deleted_flag() -> None:
+    """حذف محادثة مملوكة يعيد 200 مع علم الحذف ويُثبّت التغيير."""
+    session = _override_delete_session(_fake_user(), deleted=True)
+    try:
+        response = TestClient(app).delete(f"/api/conversations/{uuid4()}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "success": True,
+            "data": {"deleted": True},
+        }
+        session.commit.assert_awaited_once()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_rejects_unauthenticated_request() -> None:
+    """حذف بلا جلسة يُرفض بـ 401 قبل لمس القاعدة."""
+    _override_auth(None)
+    try:
+        response = TestClient(app).delete(f"/api/conversations/{uuid4()}")
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "SESSION_INVALID"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_unowned_conversation_returns_404() -> None:
+    """محادثة غائبة أو غير مملوكة تعيد 404 بلا تثبيت."""
+    session = _override_delete_session(_fake_user(), deleted=False)
+    try:
+        response = TestClient(app).delete(f"/api/conversations/{uuid4()}")
+        assert response.status_code == 404
+        assert response.json() == {
+            "success": False,
+            "error": {
+                "code": "CONVERSATION_NOT_FOUND",
+                "message": "المحادثة غير موجودة.",
+                "details": None,
+            },
+        }
+        session.commit.assert_not_awaited()
+    finally:
+        app.dependency_overrides.clear()
+
+
 class _FailingGraph:
     """رسم يفشل أثناء البث لفحص مسار الفشل الخلفي."""
 

@@ -1,4 +1,4 @@
-"""خدمة قراءة المحادثات والرسائل بالترقيم بالمؤشر (قراءة فقط)."""
+"""خدمة قراءة المحادثات والرسائل بالترقيم بالمؤشر وحذف المحادثات."""
 import base64
 import binascii
 import json
@@ -61,6 +61,20 @@ def _decode_message_cursor(cursor: str, conversation_id: UUID) -> int:
     if sequence < 0 or cursor_conversation_id != conversation_id:
         raise InvalidCursorError from None
     return sequence
+
+
+async def delete_conversation(
+    session: AsyncSession,
+    user_id: UUID,
+    conversation_id: UUID,
+) -> None:
+    """حذف محادثة يملكها المستخدم أو رفع خطأ المحادثة الغائبة."""
+    deleted = await ConversationRepository(session).delete_owned(
+        conversation_id, user_id
+    )
+    if not deleted:
+        raise ConversationNotFoundError
+    await session.commit()
 
 
 async def list_conversations(

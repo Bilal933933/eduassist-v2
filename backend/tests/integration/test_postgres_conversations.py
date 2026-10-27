@@ -7,10 +7,11 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import func, select
 
 from config.settings import settings
-from db.models import Conversation, User
-from db.repositories import MessageRepository
+from db.models import Conversation, Message, User
+from db.repositories import ConversationRepository, MessageRepository
 from db.session import open_session_factory
 from services.conversation_service import (
     get_conversation_messages,
@@ -182,6 +183,78 @@ def test_cursor_walk_has_no_duplicates_or_loss() -> None:
                         if cursor is None:
                             break
                     assert seen == [f"نص {index}" for index in range(5)]
+                finally:
+                    await session.rollback()
+
+    _run(scenario)
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_POSTGRES_TESTS") != "1",
+    reason="يتطلب قاعدة PostgreSQL محلية مهيأة.",
+)
+def test_delete_removes_conversation_and_messages() -> None:
+    """حذف محادثة مملوكة يزيل رسائلها تلقائيًا عبر CASCADE."""
+
+    async def scenario() -> None:
+        async with open_session_factory(settings.DATABASE_URL) as factory:
+            async with factory() as session:
+                try:
+                    owner = await _make_user(session)
+                    conversation = await _make_conversation(
+                        session, owner.id, "للحذف", datetime.now(timezone.utc)
+                    )
+                    messages = MessageRepository(session)
+                    await messages.add(conversation.id, owner.id, "user", "سؤال")
+                    await messages.add(conversation.id, owner.id, "assistant", "جواب")
+                    deleted = await ConversationRepository(session).delete_owned(
+                        conversation.id, owner.id
+                    )
+                    assert deleted is True
+                    remaining = await session.scalar(
+                        select(func.count())
+                        .select_from(Message)
+                        .where(Message.conversation_id == conversation.id)
+                    )
+                    assert remaining == 0
+                    assert (
+                        await ConversationRepository(session).get_owned(
+                            conversation.id, owner.id
+                        )
+                        is None
+                    )
+                finally:
+                    await session.rollback()
+
+    _run(scenario)
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_POSTGRES_TESTS") != "1",
+    reason="يتطلب قاعدة PostgreSQL محلية مهيأة.",
+)
+def test_delete_of_other_user_conversation_is_refused() -> None:
+    """محادثة مستخدم آخر لا تُحذف ولا تُكشف، والمحادثة باقية."""
+
+    async def scenario() -> None:
+        async with open_session_factory(settings.DATABASE_URL) as factory:
+            async with factory() as session:
+                try:
+                    owner = await _make_user(session)
+                    other = await _make_user(session)
+                    conversation = await _make_conversation(
+                        session, owner.id, "محمية", datetime.now(timezone.utc)
+                    )
+                    deleted = await ConversationRepository(session).delete_owned(
+                        conversation.id, other.id
+                    )
+                    assert deleted is False
+                    assert (
+                        await ConversationRepository(session).get_owned(
+                            conversation.id, owner.id
+                        )
+                        is not None
+                    )
                 finally:
                     await session.rollback()
 

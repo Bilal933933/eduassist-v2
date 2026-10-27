@@ -2,7 +2,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, tuple_
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import Conversation
@@ -36,6 +36,22 @@ class ConversationRepository:
             Conversation.user_id == user_id,
         )
         return await self._session.scalar(statement)
+
+    async def delete_owned(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+    ) -> bool:
+        """حذف محادثة مملوكة؛ يعيد True إن حُذف صف واحد.
+
+        رسائل المحادثة تُحذف تلقائيًا عبر ON DELETE CASCADE في القاعدة.
+        """
+        statement = delete(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id,
+        )
+        result = await self._session.execute(statement)
+        return bool(result.rowcount)
 
     async def list_owned_page(
         self,

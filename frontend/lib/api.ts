@@ -152,6 +152,12 @@ export function listConversationsRequest(params: {
   );
 }
 
+export function deleteConversationRequest(conversationId: string) {
+  return request<{ deleted: boolean }>(`/api/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}
+
 export function listMessagesRequest(
   conversationId: string,
   params: { limit?: number; cursor?: string | null },

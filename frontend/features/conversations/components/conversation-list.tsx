@@ -1,17 +1,32 @@
 "use client";
 
-import { LogOut, Plus, Sparkles, UserCog } from "lucide-react";
+import { useState } from "react";
+import { LogOut, Plus, Sparkles, Trash2, UserCog } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RequestFailedError } from "@/lib/api";
+import { RequestFailedError, type Conversation } from "@/lib/api";
 import { useLogout } from "@/features/auth/hooks/use-auth";
-import { useConversations, useCreateConversation } from "../hooks/use-conversations";
+import {
+  useConversations,
+  useCreateConversation,
+  useDeleteConversation,
+} from "../hooks/use-conversations";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -21,6 +36,98 @@ function formatDate(value: string) {
     return date.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" });
   }
   return date.toLocaleDateString("ar", { day: "numeric", month: "short" });
+}
+
+// ─── صف واحد: رابط المحادثة وزر الحذف شقيقان لا متداخلان ───
+function ConversationRow({
+  conversation,
+  active,
+  onSelect,
+}: {
+  conversation: Conversation;
+  active: boolean;
+  onSelect?: () => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const deleteConversation = useDeleteConversation();
+  const title = conversation.title ?? "محادثة بلا عنوان";
+  const isDeleting =
+    deleteConversation.isPending &&
+    deleteConversation.variables === conversation.id;
+
+  async function handleDelete() {
+    try {
+      await deleteConversation.mutateAsync(conversation.id);
+      toast.success("تم حذف المحادثة.");
+      onSelect?.();
+    } catch (error) {
+      toast.error(
+        error instanceof RequestFailedError ? error.message : "تعذر حذف المحادثة.",
+      );
+    } finally {
+      setConfirmOpen(false);
+    }
+  }
+
+  return (
+    <div
+      className={`group mb-1 flex items-center gap-1 rounded-2xl transition-all ${
+        active
+          ? "bg-emerald-50/80 font-semibold text-emerald-900 shadow-sm dark:bg-emerald-500/10 dark:text-emerald-100"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+    >
+      <Link
+        href={`/chat/${conversation.id}`}
+        onClick={onSelect}
+        aria-current={active ? "page" : undefined}
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-sm"
+      >
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        {conversation.status !== "active" && (
+          <Badge variant="secondary" className="shrink-0 text-[10px]">
+            مؤرشفة
+          </Badge>
+        )}
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
+          {formatDate(conversation.updated_at)}
+        </span>
+      </Link>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`حذف ${title}`}
+              className="size-8 shrink-0 rounded-xl text-muted-foreground transition-opacity hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 dark:hover:bg-red-500/10 dark:hover:text-red-400 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+            />
+          }
+        >
+          <Trash2 className="size-4" />
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف المحادثة؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيُحذف سجل المحادثة ورسائلها نهائيًا، ولا يمكن التراجع.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "جارٍ الحذف..." : "حذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 }
 
 export function ConversationList({
@@ -108,34 +215,14 @@ export function ConversationList({
             </Button>
           </div>
         )}
-        {items.map((conversation) => {
-          const active = pathname === `/chat/${conversation.id}`;
-          return (
-            <Link
-              key={conversation.id}
-              href={`/chat/${conversation.id}`}
-              onClick={onSelect}
-              aria-current={active ? "page" : undefined}
-              className={`mb-1 block rounded-2xl px-3 py-2.5 text-sm transition-all ${
-                active
-                  ? "bg-emerald-50/80 dark:bg-emerald-500/10 font-semibold text-emerald-900 dark:text-emerald-100 shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate">
-                  {conversation.title ?? "محادثة بلا عنوان"}
-                </span>
-                {conversation.status !== "active" && (
-                  <Badge variant="secondary" className="shrink-0 text-[10px]">مؤرشفة</Badge>
-                )}
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
-                  {formatDate(conversation.updated_at)}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
+        {items.map((conversation) => (
+          <ConversationRow
+            key={conversation.id}
+            conversation={conversation}
+            active={pathname === `/chat/${conversation.id}`}
+            onSelect={onSelect}
+          />
+        ))}
         {list.hasNextPage && (
           <Button
             variant="ghost"

@@ -19,6 +19,22 @@ async def open_checkpointer(
         yield AsyncPostgresSaver(pool)
 
 
+async def delete_thread_checkpoints(
+    checkpointer: object | None,
+    thread_id: str,
+) -> None:
+    """حذف نقاط الرسم الخاصة بخيط المحادثة المحذوفة (أفضل جهد).
+
+    الحذف في القاعدة ينجح حتى لو فشل تنظيف اللقطات، فالفشل هنا لا يُفشل الطلب.
+    """
+    if not isinstance(checkpointer, AsyncPostgresSaver):
+        return
+    try:
+        await checkpointer.adelete_thread(thread_id)
+    except Exception as error:
+        logger.warning("تعذر حذف لقطات المحادثة %s: %s", thread_id, error)
+
+
 async def prune_thread_checkpoints(
     checkpointer: object | None,
     thread_id: str,

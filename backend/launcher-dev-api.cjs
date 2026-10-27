@@ -12,7 +12,7 @@ const prelude = [
   "import uvicorn.loops.asyncio as _ula",
   "_ula.asyncio_loop_factory = lambda use_subprocess=False: asyncio.SelectorEventLoop",
   "from uvicorn import run",
-  'run("main:app", host="127.0.0.1", port=5002)',
+  'run("main:app", host="127.0.0.1", port=5002, reload=True)',
 ].join("; ");
 const child = spawn(python, ["-c", prelude], {
   cwd: dir,

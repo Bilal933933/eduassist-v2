@@ -16,17 +16,21 @@ from api.schemas.chat import (
     ChatRequest,
     ConversationCreate,
     ConversationCreated,
+    ConversationDeleted,
     ConversationItem,
     MessageItem,
     Page,
 )
 from api.schemas.common import SuccessResponse, ok
+from db.checkpointer import delete_thread_checkpoints
 from db.models import User
 from db.session import SessionFactory
+from graph import scoped_thread_id
 from services.chat_service import create_conversation as create_conversation_service
 from services.chat_service import accept_chat, run_chat
 from services.conversation_service import (
     MAX_LIMIT,
+    delete_conversation as delete_conversation_service,
     get_conversation_messages,
     list_conversations,
 )
@@ -90,6 +94,28 @@ async def create_conversation(
         id=conversation.id, title=conversation.title
     ).model_dump(mode="json")
     return ok(created)
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    response_model=SuccessResponse[ConversationDeleted],
+)
+async def delete_owned_conversation(
+    conversation_id: UUID,
+    http_request: Request,
+    session: AsyncSession = Depends(get_db),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+    _: None = Depends(require_trusted_origin),  # noqa: B008
+) -> dict:
+    """حذف محادثة يملكها المستخدم مع رسائلها ونقاط رسمها."""
+    await delete_conversation_service(session, user.id, conversation_id)
+    graph = getattr(http_request.app.state, "graph", None)
+    await delete_thread_checkpoints(
+        getattr(graph, "checkpointer", None),
+        scoped_thread_id(str(user.id), str(conversation_id)),
+    )
+    result = ConversationDeleted(deleted=True).model_dump(mode="json")
+    return ok(result)
 
 
 @router.get(
