@@ -66,8 +66,8 @@ export function ResponseMetadata({
       onOpenChange={setOpen}
       className="mt-4 flex w-full flex-col items-center"
     >
-      <CollapsibleTrigger className="group flex items-center gap-2 rounded-full border border-slate-200/60 bg-white/50 px-4 py-1.5 text-[11px] font-medium text-slate-500 transition-all hover:border-slate-300 hover:bg-white hover:text-slate-700 focus-visible:outline-none">
-        <Activity className="size-3 text-emerald-600" />
+      <CollapsibleTrigger className="group flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-4 py-1.5 text-[11px] font-medium text-muted-foreground transition-all hover:border-foreground/20 hover:bg-background hover:text-foreground/90 focus-visible:outline-none">
+        <Activity className="size-3 text-emerald-600 dark:text-emerald-400" />
         <span>تتبع مسار المعالجة الذكي</span>
         <ChevronDown
           className={cn(
@@ -77,17 +77,17 @@ export function ResponseMetadata({
         />
       </CollapsibleTrigger>
       <CollapsibleContent className="w-full">
-        <div className="mx-auto mt-3 w-full max-w-2xl rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 shadow-sm backdrop-blur-sm">
+        <div className="mx-auto mt-3 w-full max-w-2xl rounded-2xl border border-border bg-muted/80 p-5 shadow-sm backdrop-blur-sm">
           {path.length > 0 && (
             <div className="mb-3">
-              <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                 <Info className="size-3" />
                 مسار التنفيذ الذكي
               </p>
-              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-slate-600">
+              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
                 {path.map((node, i) => (
                   <span key={i} className="flex items-center gap-1.5">
-                    <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">
+                    <span className="rounded bg-background px-1.5 py-0.5 shadow-sm">
                       {node}
                     </span>
                     {i < path.length - 1 && (
@@ -103,12 +103,12 @@ export function ResponseMetadata({
             {entries.map(([key, value]) => (
               <div
                 key={key}
-                className="flex items-center justify-between border-b border-slate-200/40 pb-2 last:border-0 last:pb-0"
+                className="flex items-center justify-between border-b border-border/40 pb-2 last:border-0 last:pb-0"
               >
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-muted-foreground">
                   {LABELS[key] ?? key}
                 </span>
-                <span className="rounded-md bg-white/60 px-2 py-0.5 text-right font-mono text-[10px] font-medium text-slate-700 shadow-sm">
+                <span className="rounded-md bg-background/60 px-2 py-0.5 text-right font-mono text-[10px] font-medium text-foreground/90 shadow-sm">
                   {key === "response_source"
                     ? (SOURCES[String(value)] ?? formatValue(value))
                     : formatValue(value)}

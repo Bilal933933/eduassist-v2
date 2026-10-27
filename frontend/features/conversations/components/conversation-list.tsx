@@ -61,18 +61,18 @@ export function ConversationList({
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className={`flex h-full w-72 flex-col bg-slate-50/50 ${className ?? ""}`}>
+    <div className={`flex h-full w-72 flex-col bg-muted/40 ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2 p-4">
         <div className="min-w-0">
-          <p className="truncate font-bold text-slate-900">المساعد النحوي</p>
-          <p className="truncate text-xs text-slate-500">مرحبًا، {userName}</p>
+          <p className="truncate font-bold text-foreground">المساعد النحوي</p>
+          <p className="truncate text-xs text-muted-foreground">مرحبًا، {userName}</p>
         </div>
         <Button size="sm" onClick={handleNew} disabled={createConversation.isPending} className="rounded-xl shadow-none">
           <Plus className="size-4" />
           جديد
         </Button>
       </div>
-      <div className="h-px bg-slate-200/50" />
+      <div className="h-px bg-accent" />
       <ScrollArea className="flex-1 px-2 py-2">
         {list.isPending &&
           Array.from({ length: 4 }).map((_, index) => (
@@ -80,7 +80,7 @@ export function ConversationList({
           ))}
         {list.isError && (
           <div className="p-4 text-center">
-            <p className="text-sm text-red-700">تعذر تحميل المحادثات.</p>
+            <p className="text-sm text-red-700 dark:text-red-400">تعذر تحميل المحادثات.</p>
             <Button
               variant="outline"
               size="sm"
@@ -93,13 +93,13 @@ export function ConversationList({
         )}
         {!list.isPending && !list.isError && items.length === 0 && (
           <div className="px-4 py-10 text-center">
-            <div className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <Sparkles className="size-5" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-slate-700">
+            <p className="mt-3 text-sm font-semibold text-foreground/90">
               لا محادثات بعد
             </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
               ابدأ محادثة جديدة لتسأل عن أي قاعدة نحوية.
             </p>
             <Button size="sm" className="mt-4 rounded-xl" onClick={handleNew}>
@@ -118,20 +118,20 @@ export function ConversationList({
               aria-current={active ? "page" : undefined}
               className={`mb-1 block rounded-2xl px-3 py-2.5 text-sm transition-all ${
                 active
-                  ? "bg-emerald-50/80 font-semibold text-emerald-900 shadow-sm"
-                  : "text-slate-600 hover:bg-slate-200/50 hover:text-slate-900"
+                  ? "bg-emerald-50/80 dark:bg-emerald-500/10 font-semibold text-emerald-900 dark:text-emerald-100 shadow-sm"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="truncate">
+                <span className="min-w-0 flex-1 truncate">
                   {conversation.title ?? "محادثة بلا عنوان"}
                 </span>
                 {conversation.status !== "active" && (
-                  <Badge variant="secondary" className="text-[10px]">مؤرشفة</Badge>
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">مؤرشفة</Badge>
                 )}
-              </span>
-              <span className="mt-1 block text-xs tabular-nums text-slate-400">
-                {formatDate(conversation.updated_at)}
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/80">
+                  {formatDate(conversation.updated_at)}
+                </span>
               </span>
             </Link>
           );
@@ -148,13 +148,13 @@ export function ConversationList({
           </Button>
         )}
       </ScrollArea>
-      <div className="h-px bg-slate-200/50" />
+      <div className="h-px bg-accent" />
       <div className="space-y-2 p-3">
         {userRole === "teacher" && (
           <Link
             href="/profile"
             onClick={onSelect}
-            className={buttonVariants({ variant: "ghost", size: "sm", className: "w-full justify-start rounded-xl text-slate-600 hover:bg-slate-200/50" })}
+            className={buttonVariants({ variant: "ghost", size: "sm", className: "w-full justify-start rounded-xl text-muted-foreground hover:bg-accent" })}
           >
             <UserCog className="size-4 ml-2" />
             بروفايل المعلم
@@ -163,7 +163,7 @@ export function ConversationList({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600"
+          className="w-full justify-start rounded-xl text-muted-foreground hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
           onClick={handleLogout}
           disabled={logout.isPending}
         >

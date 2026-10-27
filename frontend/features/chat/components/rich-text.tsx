@@ -118,7 +118,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (!part) return null;
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
-        <strong key={key} className="font-semibold text-slate-900">
+        <strong key={key} className="font-semibold text-foreground">
           {part.slice(2, -2)}
         </strong>
       );
@@ -134,7 +134,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       return (
         <code
           key={key}
-          className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.85em] text-slate-700"
+          className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em] text-foreground/90"
         >
           {part.slice(1, -1)}
         </code>
@@ -145,9 +145,9 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
 }
 
 const HEADING_CLASSES: Record<2 | 3 | 4, string> = {
-  2: "text-lg font-bold text-slate-900",
-  3: "text-base font-bold text-slate-900",
-  4: "text-sm font-bold text-slate-800",
+  2: "text-lg font-bold text-foreground",
+  3: "text-base font-bold text-foreground",
+  4: "text-sm font-bold text-foreground",
 };
 
 export function RichText({ content }: { content: string }) {
@@ -175,11 +175,11 @@ export function RichText({ content }: { content: string }) {
             </li>
           ));
           return block.ordered ? (
-            <ol key={key} className="list-decimal space-y-1 ps-5 marker:text-slate-400">
+            <ol key={key} className="list-decimal space-y-1 ps-5 marker:text-muted-foreground/80">
               {items}
             </ol>
           ) : (
-            <ul key={key} className="list-disc space-y-1 ps-5 marker:text-slate-400">
+            <ul key={key} className="list-disc space-y-1 ps-5 marker:text-muted-foreground/80">
               {items}
             </ul>
           );
@@ -188,7 +188,7 @@ export function RichText({ content }: { content: string }) {
           return (
             <blockquote
               key={key}
-              className="border-s-2 border-emerald-200 ps-3 text-slate-600"
+              className="border-s-2 border-emerald-200 dark:border-emerald-500/30 ps-3 text-muted-foreground"
             >
               {renderInline(block.text, key)}
             </blockquote>
@@ -205,7 +205,7 @@ export function RichText({ content }: { content: string }) {
           );
         }
         if (block.kind === "divider") {
-          return <hr key={key} className="border-slate-200" />;
+          return <hr key={key} className="border-border" />;
         }
         return (
           <p key={key} className="text-pretty whitespace-pre-wrap">

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { ArrowDown, Menu, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
 import { MessageInput } from "@/features/chat/components/message-input";
 import { TypingIndicator } from "@/features/chat/components/typing-indicator";
@@ -83,7 +84,7 @@ function ConversationView({ conversationId }: { conversationId: string }) {
 
   if (messages.isPending) {
     return (
-      <section className="flex h-full w-full flex-col overflow-hidden bg-white">
+      <section className="flex h-full w-full flex-col overflow-hidden bg-background">
         <Skeleton className="h-full w-full" />
       </section>
     );
@@ -92,8 +93,8 @@ function ConversationView({ conversationId }: { conversationId: string }) {
   if (messages.isError) {
     const error = messages.error;
     return (
-      <section className="flex h-full w-full flex-col items-center justify-center gap-4 bg-white p-8 text-center">
-        <p className="font-semibold text-red-700">
+      <section className="flex h-full w-full flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+        <p className="font-semibold text-red-700 dark:text-red-400">
           {error instanceof RequestFailedError ? error.message : "تعذر تحميل المحادثة."}
         </p>
         <Button className="mt-4" onClick={() => messages.refetch()}>
@@ -104,21 +105,21 @@ function ConversationView({ conversationId }: { conversationId: string }) {
   }
 
   return (
-    <section className="relative flex h-full w-full flex-col overflow-hidden bg-white">
-      <div className="shrink-0 border-b border-slate-100 bg-white/80 backdrop-blur-sm">
+    <section className="relative flex h-full w-full flex-col overflow-hidden bg-background">
+      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <Button
               size="icon"
               variant="ghost"
-              className="shrink-0 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              className="shrink-0 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={toggleSidebar}
               aria-label={isSidebarOpen ? "إغلاق القائمة الجانبية" : "فتح القائمة الجانبية"}
               title={isSidebarOpen ? "إغلاق القائمة الجانبية" : "فتح القائمة الجانبية"}
             >
               <Menu className="size-5" />
             </Button>
-            <h1 className="truncate text-sm font-bold text-slate-900">
+            <h1 className="truncate text-sm font-bold text-foreground">
               {conversation?.title ?? "محادثة بلا عنوان"}
             </h1>
           </div>
@@ -141,11 +142,12 @@ function ConversationView({ conversationId }: { conversationId: string }) {
             >
               <Plus className="size-5" />
             </Button>
+            <ThemeToggle />
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
                 isConnected
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-700"
+                  ? "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  : "bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300"
               }`}
               aria-label={isConnected ? "متصل بالمحادثة" : "جارٍ الاتصال"}
             >
@@ -161,18 +163,18 @@ function ConversationView({ conversationId }: { conversationId: string }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overscroll-contain bg-white pb-6"
+        className="flex-1 overflow-y-auto overscroll-contain bg-background pb-6"
       >
         <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
           {items.length === 0 && (
             <div className="mt-20 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 shadow-sm">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-3xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-sm">
                 <Sparkles className="size-7" />
               </div>
-              <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
+              <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground">
                 ابدأ المحادثة بسؤال
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 اسأل عن قاعدة نحوية، أو اطلب مثالًا، أو اطلب تحضير درس.
               </p>
               <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -181,7 +183,7 @@ function ConversationView({ conversationId }: { conversationId: string }) {
                     key={suggestion}
                     type="button"
                     onClick={() => send(suggestion)}
-                    className="rounded-2xl border border-slate-200/80 bg-white p-3.5 text-right text-xs font-medium text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/30 hover:shadow-sm"
+                    className="rounded-2xl border border-border bg-background p-3.5 text-right text-xs font-medium text-foreground/90 transition-all hover:border-emerald-300 dark:hover:border-emerald-500/40 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/10 hover:shadow-sm"
                   >
                     {suggestion}
                   </button>
@@ -210,13 +212,13 @@ function ConversationView({ conversationId }: { conversationId: string }) {
           variant="outline"
           onClick={scrollToBottom}
           aria-label="التمرير إلى آخر الرسائل"
-          className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 rounded-full bg-white shadow-lg border-slate-200"
+          className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 rounded-full bg-background shadow-lg border-border"
         >
           <ArrowDown className="size-4" />
         </Button>
       )}
 
-      <div className="shrink-0 bg-white">
+      <div className="shrink-0 bg-background">
         <MessageInput
           disabled={!isConnected || isBusy}
           disabledReason={

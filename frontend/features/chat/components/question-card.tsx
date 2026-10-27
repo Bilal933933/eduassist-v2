@@ -33,13 +33,13 @@ export function QuestionCard({
   if (interaction.status !== "open") {
     const completed = interaction.status === "answered";
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+      <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
         {completed ? "تم إرسال إجاباتك." : "تم إغلاق الأسئلة."}
         {completed && interaction.answers && (
           <ul className="mt-2 space-y-1">
             {Object.entries(interaction.answers).map(([slot, value]) => (
               <li key={slot}>
-                <span className="font-medium text-slate-800">{slot}:</span>{" "}
+                <span className="font-medium text-foreground">{slot}:</span>{" "}
                 {value}
               </li>
             ))}
@@ -99,12 +99,12 @@ export function QuestionCard({
 
   return (
     <section
-      className="w-full rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm"
+      className="w-full rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-500/10 p-4 shadow-sm"
       aria-labelledby={`interaction-${interactionId}-title`}
     >
       <h3
         id={`interaction-${interactionId}-title`}
-        className="text-sm font-bold text-slate-900"
+        className="text-sm font-bold text-foreground"
       >
         أكمل البيانات للمتابعة
       </h3>
@@ -114,10 +114,10 @@ export function QuestionCard({
           const groupName = `interaction-${interactionId}-${question.slot}`;
           return (
             <fieldset key={question.slot} disabled={isDisabled}>
-              <legend className="text-sm font-semibold text-slate-800">
+              <legend className="text-sm font-semibold text-foreground">
                 {index + 1}. {question.prompt}
                 {question.required && (
-                  <span className="text-red-600" aria-hidden="true">
+                  <span className="text-red-600 dark:text-red-400" aria-hidden="true">
                     {" "}
                     *
                   </span>
@@ -128,7 +128,7 @@ export function QuestionCard({
                   {question.options.map((option) => (
                     <label
                       key={option.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:border-emerald-300"
+                      className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground/90 hover:border-emerald-300 dark:hover:border-emerald-500/40"
                     >
                       <input
                         type="radio"
@@ -147,7 +147,7 @@ export function QuestionCard({
                 <div className="mt-2">
                   <label
                     htmlFor={`${groupName}-custom`}
-                    className="text-xs text-slate-500"
+                    className="text-xs text-muted-foreground"
                   >
                     أو اكتب إجابة أخرى
                   </label>
@@ -160,7 +160,7 @@ export function QuestionCard({
                     }
                     aria-describedby={error ? errorId : undefined}
                     aria-invalid={Boolean(error && !answers[question.slot])}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-emerald-400 dark:focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-500/20"
                   />
                 </div>
               )}
@@ -170,7 +170,7 @@ export function QuestionCard({
       </div>
 
       {error && (
-        <p id={errorId} role="alert" className="mt-3 text-sm text-red-700">
+        <p id={errorId} role="alert" className="mt-3 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}

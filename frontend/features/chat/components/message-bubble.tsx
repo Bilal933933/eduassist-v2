@@ -39,7 +39,7 @@ export function MessageBubble({
         }`}
       >
         {!isUser && (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-sm">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-sm">
             <Sparkles className="size-4" />
           </div>
         )}
@@ -51,8 +51,8 @@ export function MessageBubble({
           <div
             className={`rounded-3xl px-5 py-3.5 text-[15px] leading-8 shadow-sm ${
               isUser
-                ? "bg-slate-100 text-slate-900 rounded-bl-sm"
-                : "bg-transparent px-0 py-1 text-slate-800 shadow-none"
+                ? "bg-muted text-foreground rounded-bl-sm"
+                : "bg-transparent px-0 py-1 text-foreground shadow-none"
             }`}
           >
             {isUser ? (
@@ -62,7 +62,7 @@ export function MessageBubble({
             )}
           </div>
           <div className="px-1">
-            <span className="text-[11px] tabular-nums text-slate-400">
+            <span className="text-[11px] tabular-nums text-muted-foreground/80">
               {formatTime(message.created_at)}
             </span>
           </div>
@@ -83,7 +83,7 @@ export function MessageBubble({
 
       {/* عرض الميتا داتا في سطر مستقل تماماً أسفل فقاعة الرد */}
       {!isUser && message.metadata && (
-        <div className="flex w-full justify-center border-t border-slate-100 pt-2">
+        <div className="flex w-full justify-center border-t border-border pt-2">
           <ResponseMetadata metadata={message.metadata} />
         </div>
       )}

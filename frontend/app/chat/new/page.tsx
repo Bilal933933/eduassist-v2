@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Sparkles, BookOpen, HelpCircle, MessageSquarePlus, Lightbulb, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { MessageInput } from "@/features/chat/components/message-input";
 import { RequestFailedError } from "@/lib/api";
 import { useCreateConversation } from "@/features/conversations/hooks/use-conversations";
@@ -56,14 +57,14 @@ export default function NewChatPage() {
   }
 
   return (
-    <section className="flex h-full w-full flex-col overflow-hidden bg-white">
-      <div className="shrink-0 border-b border-slate-100 bg-white/80 backdrop-blur-sm">
+    <section className="flex h-full w-full flex-col overflow-hidden bg-background">
+      <div className="shrink-0 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <Button
               size="icon"
               variant="ghost"
-              className="shrink-0 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              className="shrink-0 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={toggleSidebar}
               aria-label={isSidebarOpen ? "إغلاق القائمة الجانبية" : "فتح القائمة الجانبية"}
               title={isSidebarOpen ? "إغلاق القائمة الجانبية" : "فتح القائمة الجانبية"}
@@ -71,21 +72,25 @@ export default function NewChatPage() {
               <Menu className="size-5" />
             </Button>
 
-            <h1 className="truncate text-sm font-bold text-slate-900">
+            <h1 className="truncate text-sm font-bold text-foreground">
               محادثة جديدة
             </h1>
           </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto bg-background">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center p-6 pb-12 text-center min-h-[calc(100%-2rem)]">
-          <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 shadow-sm">
+          <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-sm">
             <Sparkles className="size-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             أهلاً بك، كيف يمكنني مساعدتك في النحو؟
           </h1>
-          <p className="mt-2 max-w-md text-slate-500">
+          <p className="mt-2 max-w-md text-muted-foreground">
             اطرح سؤالك النحوي أو اختر أحد الاقتراحات أدناه للبدء فوراً.
           </p>
 
@@ -98,16 +103,16 @@ export default function NewChatPage() {
                   type="button"
                   onClick={() => void handleFirstMessage(item.prompt)}
                   disabled={createConversation.isPending}
-                  className="flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 text-right transition-all hover:border-emerald-300 hover:bg-emerald-50/30 hover:shadow-md disabled:opacity-50"
+                  className="flex items-start gap-3.5 rounded-2xl border border-border bg-muted/40 p-4 text-right transition-all hover:border-emerald-300 dark:hover:border-emerald-500/40 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/10 hover:shadow-md disabled:opacity-50"
                 >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-emerald-600 dark:text-emerald-400 shadow-sm">
                     <Icon className="size-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800">
+                    <p className="text-sm font-semibold text-foreground">
                       {item.title}
                     </p>
-                    <p className="truncate text-xs text-slate-500">
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">
                       {item.prompt}
                     </p>
                   </div>
@@ -117,7 +122,7 @@ export default function NewChatPage() {
           </div>
         </div>
       </div>
-      <div className="shrink-0 bg-white">
+      <div className="shrink-0 bg-background">
         <MessageInput
           disabled={createConversation.isPending}
           disabledReason={

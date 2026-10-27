@@ -29,9 +29,9 @@ export default function ProfilePage() {
   if (me.data.role !== "teacher") {
     return (
       <main className="flex min-h-dvh items-center justify-center p-4" dir="rtl">
-        <section className="w-full max-w-lg rounded-3xl border bg-white p-8 text-center shadow-xl">
-          <h1 className="text-lg font-bold text-slate-900">بروفايل المعلم</h1>
-          <p className="mt-2 text-sm text-slate-500">
+        <section className="w-full max-w-lg rounded-3xl border bg-background p-8 text-center shadow-xl">
+          <h1 className="text-lg font-bold text-foreground">بروفايل المعلم</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             هذه الصفحة للمعلمين فقط.
           </p>
         </section>
@@ -40,10 +40,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-100 p-4" dir="rtl">
-      <section className="w-full max-w-lg rounded-3xl border bg-white p-8 shadow-xl">
-        <h1 className="text-lg font-bold text-slate-900">بروفايل المعلم</h1>
-        <p className="mt-1 text-sm leading-6 text-slate-500">
+    <main className="flex min-h-dvh items-center justify-center bg-muted p-4" dir="rtl">
+      <section className="w-full max-w-lg rounded-3xl border bg-background p-8 shadow-xl">
+        <h1 className="text-lg font-bold text-foreground">بروفايل المعلم</h1>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
           المادة والصف يدخلان في تحضير الدرس، فيحصل على خطة مطابقة لمستويات
           طلابك.
         </p>

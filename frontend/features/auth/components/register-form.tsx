@@ -90,7 +90,7 @@ export function RegisterForm() {
                 type="button"
                 onClick={() => setShowPassword((shown) => !shown)}
                 aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/80 hover:text-foreground/90"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
